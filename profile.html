@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>No Brand Baseball Analytics — Athlete Profile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0E1316; --panel:#151D21; --panel-2:#1B252A; --line:#2A383F;
+  --bone:#E6EDEF; --muted:#7E939C; --amber:#E3B04B; --flag:#E2654B;
+  --ok:#5FA88C; --spine:#33454D; --r:#8FB6C4; --l:#C7A87E;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;overflow-x:hidden;max-width:100%}
+body{background:var(--ink);color:var(--bone);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:15px;line-height:1.45;padding-bottom:60px;-webkit-text-size-adjust:100%}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+::placeholder{color:#4E6069;opacity:1;font-style:italic}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.wrap{max-width:1040px;margin:0 auto;padding:0 16px}
+
+header.top{border-bottom:1px solid var(--line);background:linear-gradient(180deg,#131B1F,#0E1316);position:sticky;top:0;z-index:20}
+.top-in{display:flex;align-items:baseline;gap:12px;padding:14px 16px 12px;min-width:0;max-width:1040px;margin:0 auto}
+.brand{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;font-weight:700;letter-spacing:.14em;font-size:17px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.brand span{color:var(--amber)}
+.top-meta{margin-left:auto;font-size:12px;letter-spacing:.08em;flex:none;white-space:nowrap;font-family:"Barlow Condensed",sans-serif;text-transform:uppercase}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--flag);margin-right:6px;vertical-align:middle}
+.dot.on{background:var(--ok)}
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:16px;margin:16px 0}
+.card h2{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.1em;font-size:15px;margin:0 0 12px;color:var(--muted);font-weight:600}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+@media(max-width:700px){.grid3{grid-template-columns:1fr}}
+label.fld{display:block}
+label.fld .lab{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;font-family:"Barlow Condensed",sans-serif;font-weight:600}
+input,select{width:100%;background:var(--ink);border:1px solid var(--line);border-radius:2px;padding:9px 10px;font-family:"IBM Plex Mono",monospace;font-size:15px}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--amber);outline-offset:1px}
+.btn{background:var(--amber);color:#12181B;border:none;border-radius:2px;padding:11px 18px;font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.1em;font-weight:700;font-size:15px}
+.btn.ghost{background:transparent;color:var(--bone);border:1px solid var(--line)}
+.hint{font-size:12.5px;color:var(--muted);margin-top:8px}
+details.setup summary{cursor:pointer;font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-size:13px;padding:4px 0}
+.status{font-size:13px;color:var(--muted);margin-top:10px}
+.status.err{color:var(--flag)}
+.status.ok{color:var(--ok)}
+
+/* identity strip */
+.who{display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:4px}
+.who .name{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.06em;font-size:30px;font-weight:700;line-height:1}
+.who .stat{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--muted)}
+.who .stat b{color:var(--bone);font-weight:500}
+
+/* visit rail */
+.rail{display:flex;gap:0;align-items:stretch;margin:14px 0 0;overflow-x:auto;padding-bottom:4px}
+.visit{flex:none;border-left:1px solid var(--line);padding:6px 14px 4px;min-width:104px}
+.visit:first-child{border-left:none;padding-left:0}
+.visit .d{font-family:"IBM Plex Mono",monospace;font-size:12.5px}
+.visit .t{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;font-size:11px;letter-spacing:.1em;color:var(--muted)}
+.visit .by{font-size:11px;color:var(--muted)}
+.visit.latest .d{color:var(--amber)}
+
+/* spine */
+.spine{position:relative;padding:6px 0}
+.spine:before{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:repeating-linear-gradient(180deg,var(--spine) 0 6px,transparent 6px 12px);transform:translateX(-.5px)}
+.sect{margin:30px 0 0;position:relative}
+.sect > h3{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.16em;font-size:13px;color:var(--muted);text-align:center;margin:0 auto 10px;font-weight:600;background:var(--ink);display:table;padding:0 14px;position:relative;z-index:2}
+.sidecap{display:grid;grid-template-columns:1fr 1fr;font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.18em;font-size:11px;color:var(--muted);margin-bottom:6px}
+.sidecap span:first-child{text-align:right;padding-right:110px;color:var(--r)}
+.sidecap span:last-child{padding-left:110px;color:var(--l)}
+
+.bi{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:9px 0;border-bottom:1px solid rgba(42,56,63,.5)}
+.bi .side{display:flex;align-items:center;min-width:0;gap:10px}
+.bi .side.right{justify-content:flex-end;padding-right:14px}
+.bi .side.left{justify-content:flex-start;padding-left:14px}
+.bi .mid{width:190px;text-align:center;padding:0 6px}
+.bi .midlab{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.05em;font-size:13px;line-height:1.15}
+.bi .asym{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--muted);height:14px}
+.bi .asym.flagged{color:var(--flag)}
+.val{font-family:"IBM Plex Mono",monospace;font-size:19px;font-variant-numeric:tabular-nums}
+.val.dim{color:var(--muted);font-size:15px}
+.chg{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted);white-space:nowrap}
+.chg.up{color:var(--ok)}
+.chg.down{color:var(--flag)}
+.q{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;font-size:10.5px;letter-spacing:.08em;color:var(--flag);border:1px solid var(--flag);border-radius:2px;padding:1px 5px;white-space:nowrap}
+.spark{display:block;margin:2px auto 0}
+
+.mid-row{display:grid;grid-template-columns:1fr 1fr;align-items:center;padding:8px 0;border-bottom:1px solid rgba(42,56,63,.5);position:relative}
+.mid-row:after{content:"";position:absolute;left:50%;top:50%;width:9px;height:1px;background:var(--muted);transform:translate(-50%,-50%)}
+.mid-row .ml{text-align:right;padding-right:16px;font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.05em;font-size:13px;color:var(--muted)}
+.mid-row .mv{padding-left:16px;display:flex;align-items:center;gap:10px}
+
+.flagrow{display:flex;gap:10px;align-items:baseline;padding:7px 0;border-bottom:1px solid rgba(42,56,63,.5);font-size:13.5px}
+.flagrow:last-child{border-bottom:none}
+.flagrow .tag{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;font-size:11px;letter-spacing:.1em;padding:1px 6px;border:1px solid var(--flag);color:var(--flag);border-radius:2px;flex:none}
+.flagrow .tag.t2{border-color:var(--amber);color:var(--amber)}
+.flagrow .tag.t3{border-color:var(--muted);color:var(--muted)}
+.empty{color:var(--muted);font-size:13.5px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media(max-width:640px){
+  .bi .mid{width:132px}
+  .val{font-size:16px}
+  .sidecap span:first-child{padding-right:70px}
+  .sidecap span:last-child{padding-left:70px}
+  .who .name{font-size:23px}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brand">No Brand<span class="long"> <span style="color:var(--amber)">/</span> Profile</span></div>
+    <div class="top-meta"><span class="dot" id="connDot"></span><b id="connTxt">Not connected</b></div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="card">
+    <details class="setup" id="setupBox">
+      <summary>Repository &amp; access</summary>
+      <div style="margin-top:12px">
+        <div class="grid3">
+          <label class="fld"><span class="lab">Owner</span><input type="text" id="ghOwner" placeholder="org or username" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+          <label class="fld"><span class="lab">Repository</span><input type="text" id="ghRepo" placeholder="repo name" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+          <label class="fld"><span class="lab">Branch</span><input type="text" id="ghBranch" placeholder="main" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+        </div>
+        <div style="margin-top:10px">
+          <label class="fld"><span class="lab">Access token</span><input type="password" id="ghToken" placeholder="paste your token here" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" id="connectBtn">Connect</button>
+          <button class="btn ghost" id="forgetBtn">Forget token</button>
+        </div>
+        <p class="hint">Same repository and token as the assessment form. If you already connected on this device, this fills in automatically.</p>
+      </div>
+    </details>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+      <label class="fld" style="flex:1;min-width:220px"><span class="lab">Athlete</span><select id="athletePick"><option value="">— connect to load athletes —</option></select></label>
+      <button class="btn" id="openBtn">Open profile</button>
+      <button class="btn ghost" id="csvBtn">Export CSV</button>
+    </div>
+    <div class="status" id="status">Connect to load the athlete list.</div>
+  </div>
+
+  <div id="profile" style="display:none">
+    <div class="card">
+      <div class="who">
+        <div class="name" id="pName">—</div>
+        <div class="stat" id="pStats"></div>
+      </div>
+      <div class="rail" id="pRail"></div>
+    </div>
+
+    <div class="card">
+      <h2>Flags</h2>
+      <div id="pFlags"><div class="empty">None.</div></div>
+    </div>
+
+    <div class="spine" id="pBody"></div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   No Brand Baseball Analytics — athlete profile
+   Reads the JSON written by the assessment form.
+   Measure schema below must stay in step with index.html.
+   ========================================================= */
+
+const mem = {};
+const store = {
+  get(k){ try { const v = localStorage.getItem(k); return v === null ? (k in mem ? mem[k] : null) : v; } catch(e){ return k in mem ? mem[k] : null; } },
+  set(k,v){ mem[k]=v; try{ localStorage.setItem(k,v); }catch(e){} },
+  del(k){ delete mem[k]; try{ localStorage.removeItem(k); }catch(e){} }
+};
+
+/* measures, grouped for display. `asym` is the side-to-side flag threshold. */
+const GROUPS = [
+  { title:'Static observation', fields:[
+    { key:'static_posture', label:'Static posture', kind:'sel' },
+    { key:'infrasternal',   label:'Infrasternal angle', kind:'sel' },
+    { key:'foot_type',      label:'Foot arch', kind:'sel' },
+    { key:'walking',        label:'Walking obs.', kind:'sel', pair:true },
+    { key:'femur_obs',      label:'Femur obs.', kind:'sel', pair:true }
+  ]},
+  { title:'Cervical & posture', fields:[
+    { key:'neck_flexion',   label:'Neck flexion', kind:'grade' },
+    { key:'neck_extension', label:'Neck extension', kind:'grade' },
+    { key:'kyphotic',       label:'Kyphotic', kind:'yn' },
+    { key:'pelvic_tilt',    label:'Pelvic tilt', kind:'sel' },
+    { key:'neck_rot',       label:'Neck rotation', kind:'grade', pair:true }
+  ]},
+  { title:'Shoulder & thoracic', fields:[
+    { key:'sh_abduction',   label:'Shoulder abduction', kind:'grade' },
+    { key:'supine_flexion', label:'Supine flexion', kind:'grade' },
+    { key:'ant_roll',       label:'Anterior roll', kind:'yn', pair:true },
+    { key:'tspine',         label:'T-spine rotation', kind:'grade', pair:true },
+    { key:'sh_ir', label:'Shoulder IR', kind:'num', unit:'°', pair:true, asym:.10 },
+    { key:'sh_er', label:'Shoulder ER', kind:'num', unit:'°', pair:true, asym:.10 }
+  ]},
+  { title:'Hip & lower half', fields:[
+    { key:'manual_hip', label:'Manual hip', kind:'grade', pair:true },
+    { key:'thomas',     label:'Thomas test', kind:'yn', pair:true },
+    { key:'active_hip', label:'Active hip flexion', kind:'num', unit:'°', pair:true, asym:.08 },
+    { key:'hammy',      label:'Active hamstring', kind:'num', unit:'°', pair:true, asym:.08 },
+    { key:'hip_ir',     label:'Hip IR', kind:'num', unit:'°', pair:true, asym:.15 },
+    { key:'hip_er',     label:'Hip ER', kind:'num', unit:'°', pair:true, asym:.15 },
+    { key:'ankle',      label:'Ankle DF', kind:'num', unit:'°', pair:true, asym:.10 }
+  ]},
+  { title:'Strength', fields:[
+    { key:'str_ir',  label:'Shoulder IR', kind:'num', pair:true, asym:.10 },
+    { key:'str_er',  label:'Shoulder ER', kind:'num', pair:true, asym:.10 },
+    { key:'str_ab',  label:'Hip ABD', kind:'num', pair:true, asym:.10 },
+    { key:'str_add', label:'Hip ADD', kind:'num', pair:true, asym:.10 },
+    { key:'grip_90', label:'Grip @ 90°', kind:'num', pair:true, asym:.10 },
+    { key:'grip_0',  label:'Grip @ 0°', kind:'num', pair:true, asym:.10 }
+  ]},
+  { title:'Anatomical', fields:[
+    { key:'height',      label:'Height', kind:'num', unit:'in' },
+    { key:'body_weight', label:'Body weight', kind:'num', unit:'lb' },
+    { key:'torso',       label:'Torso', kind:'num', unit:'in' },
+    { key:'humerus',     label:'Humerus', kind:'num', unit:'in', pair:true, asym:.05 },
+    { key:'forearm',     label:'Forearm', kind:'num', unit:'in', pair:true, asym:.05 },
+    { key:'hand_length', label:'Hand length', kind:'num', unit:'in', pair:true, asym:.05 },
+    { key:'hand_span',   label:'Hand span', kind:'num', unit:'in', pair:true, asym:.05 },
+    { key:'femur',       label:'Femur', kind:'num', unit:'in', pair:true, asym:.05 },
+    { key:'tibia',       label:'Tibia', kind:'num', unit:'in', pair:true, asym:.05 }
+  ]}
+];
+
+/* degree measures where a single-digit entry is almost certainly a grade
+   typed into a goniometer field rather than a real reading */
+const DEG_MIN = 5;
+
+let athletes = [];   // [{slug, files:[path]}]
+let history  = [];   // current athlete, OLDEST first
+
+/* "Shoulder IR" exists as both a ROM and a strength measure — disambiguate
+   any label that appears in more than one group, or flags read ambiguously */
+(function(){
+  const seen = {};
+  GROUPS.forEach(g => g.fields.forEach(f => { seen[f.label] = (seen[f.label]||0)+1; }));
+  GROUPS.forEach(g => g.fields.forEach(f => {
+    f.flagLabel = seen[f.label] > 1 ? f.label+' ('+g.title.replace(/ &.*/,'')+')' : f.label;
+  }));
+})();
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const num = v => typeof v === 'number' && !isNaN(v);
+
+/* ---------- github ---------- */
+function cfg(){
+  return { owner:$('ghOwner').value.trim(), repo:$('ghRepo').value.trim(),
+           branch:$('ghBranch').value.trim() || 'main', token:$('ghToken').value.trim() };
+}
+function saveCfg(){
+  const c = cfg();
+  store.set('nb_owner',c.owner); store.set('nb_repo',c.repo);
+  store.set('nb_branch',c.branch); store.set('nb_token',c.token);
+}
+function loadCfg(){
+  $('ghOwner').value  = store.get('nb_owner')  || '';
+  $('ghRepo').value   = store.get('nb_repo')   || '';
+  $('ghBranch').value = store.get('nb_branch') || 'main';
+  $('ghToken').value  = store.get('nb_token')  || '';
+}
+async function gh(path){
+  const c = cfg();
+  if (!c.owner || !c.repo || !c.token) throw new Error('Connect the repository first.');
+  const res = await fetch('https://api.github.com/repos/'+c.owner+'/'+c.repo+path, {
+    headers:{ 'Authorization':'Bearer '+c.token, 'Accept':'application/vnd.github+json', 'X-GitHub-Api-Version':'2022-11-28' }
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('GitHub '+res.status+': '+(await res.text()).slice(0,160));
+  return res.json();
+}
+function unb64(s){
+  const bin = atob(s.replace(/\n/g,''));
+  return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
+}
+function status(m, cls){ const s=$('status'); s.textContent=m; s.className='status'+(cls?' '+cls:''); }
+function setConn(ok,t){ $('connDot').className='dot'+(ok?' on':''); $('connTxt').textContent=t; }
+
+$('connectBtn').onclick = async () => {
+  saveCfg(); status('Connecting…');
+  try {
+    const r = await gh('');
+    if (!r) throw new Error('Cannot see that repository — check the owner, the name, and that the token was granted access to it.');
+    setConn(true, r.full_name);
+    $('setupBox').open = false;
+    await loadAthletes();
+  } catch(e){ setConn(false,'Not connected'); status(e.message,'err'); }
+};
+$('forgetBtn').onclick = () => { store.del('nb_token'); $('ghToken').value=''; setConn(false,'Not connected'); status('Token removed from this device.'); };
+
+/* ---------- athlete list ---------- */
+async function loadAthletes(){
+  status('Loading athletes…');
+  const dir = await gh('/contents/assessments?ref='+encodeURIComponent(cfg().branch));
+  const sel = $('athletePick');
+  if (!dir || !dir.length){
+    sel.innerHTML = '<option value="">— no assessments saved yet —</option>';
+    status('No assessments in this repository yet.','err'); return;
+  }
+  athletes = dir.filter(d => d.type === 'dir').map(d => ({ slug:d.name }));
+  sel.innerHTML = '<option value="">— choose —</option>' +
+    athletes.map(a => '<option value="'+esc(a.slug)+'">'+esc(a.slug)+'</option>').join('');
+  status(athletes.length + ' athlete' + (athletes.length===1?'':'s') + ' on file.','ok');
+}
+
+/* ---------- load one athlete ---------- */
+async function openAthlete(slug){
+  if (!slug){ status('Pick an athlete first.','err'); return; }
+  status('Loading history…');
+  const dir = await gh('/contents/assessments/'+slug+'?ref='+encodeURIComponent(cfg().branch));
+  if (!dir){ status('Nothing found for that athlete.','err'); return; }
+  const out = [];
+  for (const f of dir.filter(f => f.name.endsWith('.json'))){
+    const meta = await gh('/contents/'+f.path.split('/').map(encodeURIComponent).join('/')+'?ref='+encodeURIComponent(cfg().branch));
+    if (meta && meta.content) out.push(JSON.parse(unb64(meta.content)));
+  }
+  out.sort((a,b) => (a.date||'').localeCompare(b.date||'') || (a.recorded_at||'').localeCompare(b.recorded_at||''));
+  history = out;
+  render();
+  status('Loaded '+out.length+' assessment'+(out.length===1?'':'s')+'.','ok');
+}
+$('openBtn').onclick = () => openAthlete($('athletePick').value).catch(e => status(e.message,'err'));
+
+/* ---------- helpers over history ---------- */
+function seriesFor(key){
+  // [{date, v}] for visits that recorded this key
+  return history.filter(a => a.values && a.values[key] !== null && a.values[key] !== undefined)
+                .map(a => ({ date:a.date, v:a.values[key] }));
+}
+function latestOf(key){ const s = seriesFor(key); return s.length ? s[s.length-1] : null; }
+function firstOf(key){ const s = seriesFor(key); return s.length ? s[0] : null; }
+
+/* ---------- sparkline ---------- */
+function sparkline(seriesR, seriesL){
+  const all = seriesR.concat(seriesL).filter(p => num(p.v));
+  // a lone dot says nothing — only draw once there are two visits to compare
+  if (new Set(all.map(p => p.date)).size < 2) return '';
+  const dates = [...new Set(history.map(a => a.date))].sort();
+  const W = 176, H = 30, PAD = 3;
+  const xs = d => dates.length < 2 ? W/2 : PAD + (dates.indexOf(d) / (dates.length-1)) * (W - PAD*2);
+  const vals = all.map(p => p.v);
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  if (hi === lo){ hi = lo + 1; lo = lo - 1; }
+  const ys = v => H - PAD - ((v - lo) / (hi - lo)) * (H - PAD*2);
+  const path = (s, col) => {
+    const pts = s.filter(p => num(p.v)).map(p => xs(p.date).toFixed(1)+','+ys(p.v).toFixed(1));
+    if (!pts.length) return '';
+    if (pts.length === 1){
+      const [x,y] = pts[0].split(',');
+      return '<circle cx="'+x+'" cy="'+y+'" r="2" fill="'+col+'"/>';
+    }
+    return '<polyline points="'+pts.join(' ')+'" fill="none" stroke="'+col+'" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>' +
+           '<circle cx="'+pts[pts.length-1].split(',')[0]+'" cy="'+pts[pts.length-1].split(',')[1]+'" r="2.1" fill="'+col+'"/>';
+  };
+  return '<svg class="spark" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" aria-hidden="true">' +
+         path(seriesR,'var(--r)') + path(seriesL,'var(--l)') + '</svg>';
+}
+
+/* ---------- render ---------- */
+function render(){
+  if (!history.length) return;
+  const last = history[history.length-1];
+  $('profile').style.display = '';
+  $('pName').textContent = last.athlete || '—';
+
+  const dates = history.map(a => a.date);
+  $('pStats').innerHTML =
+    '<b>'+history.length+'</b> assessments &nbsp;·&nbsp; <b>'+esc(dates[0])+'</b> → <b>'+esc(dates[dates.length-1])+'</b>' +
+    (last.assessed_by ? ' &nbsp;·&nbsp; last by <b>'+esc(last.assessed_by)+'</b>' : '');
+
+  $('pRail').innerHTML = history.map((a,i) =>
+    '<div class="visit'+(i===history.length-1?' latest':'')+'">' +
+      '<div class="d">'+esc(a.date)+'</div>' +
+      '<div class="t">'+esc(a.type||'')+'</div>' +
+      '<div class="by">'+esc(a.assessed_by||'')+'</div>' +
+    '</div>').join('');
+
+  const flags = [];
+  const body = $('pBody');
+  body.innerHTML = '';
+
+  GROUPS.forEach(g => {
+    // only render measures this athlete actually has data for
+    const live = g.fields.filter(f => f.pair
+      ? (seriesFor(f.key+'_r').length || seriesFor(f.key+'_l').length)
+      : seriesFor(f.key).length);
+    if (!live.length) return;
+
+    const sec = document.createElement('section');
+    sec.className = 'sect';
+    sec.innerHTML = '<h3>'+esc(g.title)+'</h3>';
+    const mids  = live.filter(f => !f.pair);
+    const pairs = live.filter(f =>  f.pair);
+
+    mids.forEach(f => {
+      const cur = latestOf(f.key), first = firstOf(f.key);
+      const row = document.createElement('div');
+      row.className = 'mid-row';
+      let chg = '';
+      if (num(cur.v) && num(first.v) && first.date !== cur.date){
+        const d = +(cur.v - first.v).toFixed(1);
+        chg = '<span class="chg '+(d>0?'up':d<0?'down':'')+'">'+(d>0?'+':'')+d+' since '+first.date+'</span>';
+      }
+      row.innerHTML = '<div class="ml">'+esc(f.label)+(f.unit?' ('+f.unit+')':'')+'</div>' +
+        '<div class="mv"><span class="val">'+esc(String(cur.v))+'</span>'+chg+'</div>';
+      sec.appendChild(row);
+      // a posture or grade that moved is as much a finding as a number that moved
+      if (f.kind !== 'num' && first && first.date !== cur.date && first.v !== cur.v)
+        flags.push({ t:2, text:f.flagLabel+' '+first.v+' → '+cur.v+' between '+first.date+' and '+cur.date });
+      if (f.kind === 'num' && f.unit === '°' && num(cur.v) && cur.v < DEG_MIN)
+        flags.push({ t:4, text:f.flagLabel+' recorded as '+cur.v+'° on '+cur.date+' — below a plausible goniometer reading, check it was not a 0–3 grade' });
+    });
+
+    if (pairs.length){
+      const cap = document.createElement('div');
+      cap.className = 'sidecap';
+      cap.innerHTML = '<span>Right</span><span>Left</span>';
+      sec.appendChild(cap);
+    }
+
+    pairs.forEach(f => {
+      const kr = f.key+'_r', kl = f.key+'_l';
+      const cr = latestOf(kr), cl = latestOf(kl);
+      const fr = firstOf(kr),  fl = firstOf(kl);
+      const row = document.createElement('div');
+      row.className = 'bi';
+
+      const chgFor = (cur, first) => {
+        if (!cur || !first || !num(cur.v) || !num(first.v) || first.date === cur.date) return '';
+        const d = +(cur.v - first.v).toFixed(1);
+        if (d === 0) return '<span class="chg">=</span>';
+        return '<span class="chg '+(d>0?'up':'down')+'">'+(d>0?'+':'')+d+'</span>';
+      };
+      const qualFor = k => {
+        const q = latestOf(k+'_q');
+        return q && Array.isArray(q.v) && q.v.length ? '<span class="q">'+esc(q.v.join(' · '))+'</span>' : '';
+      };
+      const valFor = c => c ? '<span class="val">'+esc(String(c.v))+'</span>' : '<span class="val dim">—</span>';
+
+      // asymmetry on the latest pair
+      let asym = '', flagged = false;
+      if (cr && cl && num(cr.v) && num(cl.v) && (cr.v || cl.v)){
+        const big = Math.max(Math.abs(cr.v), Math.abs(cl.v)) || 1;
+        const diff = cr.v - cl.v, pct = Math.abs(diff)/big;
+        flagged = f.asym != null && pct > f.asym;
+        asym = Math.abs(diff).toFixed(Math.abs(diff)%1?1:0)+'  '+(pct*100).toFixed(0)+'%';
+        if (flagged) flags.push({ t:1, text:f.flagLabel+' — R '+cr.v+' / L '+cl.v+', '+(pct*100).toFixed(0)+'% side-to-side (threshold '+(f.asym*100)+'%)' });
+      } else if (cr && cl && cr.v !== cl.v){
+        asym = 'R≠L'; flagged = true;
+        flags.push({ t:2, text:f.flagLabel+' — R '+cr.v+' / L '+cl.v });
+      }
+
+      // meaningful change since first visit
+      [[cr,fr,'R'],[cl,fl,'L']].forEach(([c,fst,side]) => {
+        if (c && fst && num(c.v) && num(fst.v) && fst.date !== c.date){
+          const d = c.v - fst.v;
+          if (Math.abs(d) >= Math.max(5, Math.abs(fst.v)*.12))
+            flags.push({ t:2, text:f.flagLabel+' '+side+' '+fst.v+' → '+c.v+' between '+fst.date+' and '+c.date });
+        }
+      });
+
+      [[kr,'R'],[kl,'L']].forEach(([k,side]) => {
+        const q = latestOf(k+'_q');
+        if (q && Array.isArray(q.v) && q.v.length)
+          flags.push({ t:3, text:f.flagLabel+' '+side+' — '+q.v.join(', ')+' (noted '+q.date+')' });
+      });
+
+      row.innerHTML =
+        '<div class="side right">'+chgFor(cr,fr)+qualFor(kr)+valFor(cr)+'</div>' +
+        '<div class="mid">' +
+          '<div class="midlab">'+esc(f.label)+(f.unit?' <span style="color:var(--muted)">'+f.unit+'</span>':'')+'</div>' +
+          '<div class="asym'+(flagged?' flagged':'')+'">'+asym+'</div>' +
+          sparkline(seriesFor(kr), seriesFor(kl)) +
+        '</div>' +
+        '<div class="side left">'+valFor(cl)+qualFor(kl)+chgFor(cl,fl)+'</div>';
+      sec.appendChild(row);
+
+      if (f.kind === 'num' && f.unit === '°'){
+        [[cr,'R'],[cl,'L']].forEach(([c,side]) => {
+          if (c && num(c.v) && c.v < DEG_MIN)
+            flags.push({ t:4, text:f.flagLabel+' '+side+' recorded as '+c.v+'° on '+c.date+' — below a plausible goniometer reading, check it was not a 0–3 grade' });
+        });
+      }
+    });
+
+    body.appendChild(sec);
+  });
+
+  flags.sort((a,b) => a.t - b.t);
+  const TAG = {1:['ASYM',''],2:['CHANGE',' t2'],3:['NOTE',' t3'],4:['CHECK',' t3']};
+  $('pFlags').innerHTML = flags.length
+    ? flags.map(f => { const [name,cls] = TAG[f.t] || TAG[3];
+        return '<div class="flagrow"><span class="tag'+cls+'">'+name+'</span><span>'+esc(f.text)+'</span></div>'; }).join('')
+    : '<div class="empty">Nothing outside threshold.</div>';
+}
+
+/* ---------- csv ---------- */
+$('csvBtn').onclick = () => {
+  if (!history.length){ status('Open an athlete first.','err'); return; }
+  const keys = [];
+  history.forEach(r => Object.keys(r.values||{}).forEach(k => { if (!keys.includes(k)) keys.push(k); }));
+  keys.sort();
+  const line = a => a.map(v => {
+    const s = Array.isArray(v) ? v.join('|') : (v===null||v===undefined ? '' : String(v));
+    return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+  }).join(',');
+  const csv = [line(['athlete','date','type','assessed_by'].concat(keys))]
+    .concat(history.map(r => line([r.athlete,r.date,r.type,r.assessed_by].concat(keys.map(k => (r.values||{})[k])))))
+    .join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download = (history[0].athlete_id||'athlete')+'-history.csv';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+
+/* test hook — lets the page be rendered from fixture data without GitHub */
+window.__render = data => { history = data; render(); };
+
+loadCfg();
+if (store.get('nb_token')) $('connectBtn').click(); else $('setupBox').open = true;
+</script>
+</body>
+</html>
