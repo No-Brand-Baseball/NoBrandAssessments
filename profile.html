@@ -459,7 +459,8 @@ function render(){
         if (flagged) flags.push({ t:1, text:f.flagLabel+' — R '+cr.v+' / L '+cl.v+', '+(pct*100).toFixed(0)+'% side-to-side (threshold '+(f.asym*100)+'%)' });
       } else if (cr && cl && cr.v !== cl.v){
         asym = 'R≠L'; flagged = true;
-        flags.push({ t:2, text:f.flagLabel+' — R '+cr.v+' / L '+cl.v });
+        // a yes/no or grade differing side to side is an asymmetry, not a change over time
+        flags.push({ t:1, text:f.flagLabel+' — R '+cr.v+' / L '+cl.v });
       }
 
       // meaningful change since first visit
