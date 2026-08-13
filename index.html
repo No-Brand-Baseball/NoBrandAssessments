@@ -23,7 +23,8 @@
   --l:#C7A87E;
 }
 *{box-sizing:border-box}
-html,body{margin:0;padding:0}
+html,body{margin:0;padding:0;overflow-x:hidden;max-width:100%}
+::placeholder{color:#4E6069;opacity:1;font-style:italic;letter-spacing:.01em}
 body{
   background:var(--ink);
   color:var(--bone);
@@ -45,10 +46,10 @@ header.top{
   background:linear-gradient(180deg,#131B1F,#0E1316);
   position:sticky;top:0;z-index:20;
 }
-.top-in{display:flex;align-items:baseline;gap:12px;padding:14px 0 12px}
-.brand{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;font-weight:700;letter-spacing:.14em;font-size:17px}
+.top-in{display:flex;align-items:baseline;gap:12px;padding:14px 16px 12px;min-width:0}
+.brand{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;font-weight:700;letter-spacing:.14em;font-size:17px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .brand span{color:var(--amber)}
-.top-meta{margin-left:auto;font-size:12px;letter-spacing:.08em}
+.top-meta{margin-left:auto;font-size:12px;letter-spacing:.08em;flex:none;white-space:nowrap}
 .top-meta b{font-weight:600}
 .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--flag);margin-right:6px;vertical-align:middle}
 .dot.on{background:var(--ok)}
@@ -170,6 +171,7 @@ details.setup summary{cursor:pointer;font-family:"Barlow Condensed",sans-serif;t
   .qual{margin-left:0}
   .qual button{height:28px;padding:0 6px;font-size:11px}
   .brand{font-size:14px;letter-spacing:.1em}
+  .brand .long{display:none}
   .top-meta{font-size:10.5px}
   .savebar .in{flex-wrap:wrap}
   .savebar .status{flex-basis:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:8px}
@@ -183,7 +185,7 @@ details.setup summary{cursor:pointer;font-family:"Barlow Condensed",sans-serif;t
 
 <header class="top">
   <div class="wrap top-in">
-    <div class="brand">No Brand <span>/</span> Assessment</div>
+    <div class="brand">No Brand<span class="long"> <span style="color:var(--amber)">/</span> Assessment</span></div>
     <div class="top-meta cond"><span class="dot" id="connDot"></span><b id="connTxt">Not connected</b></div>
   </div>
 </header>
@@ -195,12 +197,12 @@ details.setup summary{cursor:pointer;font-family:"Barlow Condensed",sans-serif;t
       <summary>Repository &amp; access</summary>
       <div style="margin-top:12px">
         <div class="grid3">
-          <label class="fld"><span class="lab">Owner</span><input type="text" id="ghOwner" placeholder="sicher19-dev" autocomplete="off"></label>
-          <label class="fld"><span class="lab">Repository</span><input type="text" id="ghRepo" placeholder="nobrand-assessments" autocomplete="off"></label>
-          <label class="fld"><span class="lab">Branch</span><input type="text" id="ghBranch" placeholder="main" autocomplete="off"></label>
+          <label class="fld"><span class="lab">Owner</span><input type="text" id="ghOwner" placeholder="your github username" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+          <label class="fld"><span class="lab">Repository</span><input type="text" id="ghRepo" placeholder="repo name" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+          <label class="fld"><span class="lab">Branch</span><input type="text" id="ghBranch" placeholder="main" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
         </div>
         <div style="margin-top:10px">
-          <label class="fld"><span class="lab">Access token</span><input type="password" id="ghToken" placeholder="github_pat_..." autocomplete="off"></label>
+          <label class="fld"><span class="lab">Access token</span><input type="password" id="ghToken" placeholder="paste your token here" autocomplete="off" autocapitalize="off" spellcheck="false" autocorrect="off"></label>
         </div>
         <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn" id="connectBtn">Connect</button>
@@ -651,17 +653,65 @@ function unb64(s){
 
 $('connectBtn').onclick = async () => {
   saveCfg();
-  status('Connecting…');
+  const c = cfg();
+  if (!c.token){ setConn(false,'Not connected'); status('No token entered.', 'err'); return; }
+  if (!c.owner || !c.repo){ setConn(false,'Not connected'); status('Owner and repository are both required.', 'err'); return; }
+  status('Checking token…');
+
+  const H = {
+    'Authorization': 'Bearer ' + c.token,
+    'Accept': 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28'
+  };
+
+  // Step 1 — is the token itself valid?
+  let who;
   try {
-    const r = await gh('', {});
-    if (!r) throw new Error('Repository not found — check owner and name.');
-    setConn(true, r.full_name);
-    status('Connected to ' + r.full_name + '.', 'ok');
-    $('setupBox').open = false;
+    const u = await fetch('https://api.github.com/user', { headers: H });
+    if (u.status === 401){
+      setConn(false,'Not connected');
+      status('Step 1 — GitHub rejected the token (401). It is mistyped, expired, or revoked. Generate a new one and paste the whole string, including the github_pat_ prefix.', 'err');
+      return;
+    }
+    if (!u.ok) throw new Error('GitHub ' + u.status);
+    who = await u.json();
   } catch(e){
-    setConn(false, 'Not connected');
-    status(e.message, 'err');
+    setConn(false,'Not connected');
+    status('Step 1 — could not reach GitHub: ' + e.message, 'err');
+    return;
   }
+
+  // Step 2 — can this token see the repository?
+  let repo;
+  try {
+    const r = await fetch('https://api.github.com/repos/' + c.owner + '/' + c.repo, { headers: H });
+    if (r.status === 404){
+      setConn(false,'Not connected');
+      status('Step 2 — token is valid (signed in as ' + who.login + ') but cannot see ' + c.owner + '/' + c.repo + '. Either the owner or repo name is wrong, or the token was not granted access to this repository, or it is an organisation repo still awaiting admin approval.', 'err');
+      return;
+    }
+    if (r.status === 403){
+      setConn(false,'Not connected');
+      status('Step 2 — access forbidden (403). Usually an organisation blocking fine-grained tokens, or an approval still pending.', 'err');
+      return;
+    }
+    if (!r.ok) throw new Error('GitHub ' + r.status);
+    repo = await r.json();
+  } catch(e){
+    setConn(false,'Not connected');
+    status('Step 2 — ' + e.message, 'err');
+    return;
+  }
+
+  // Step 3 — can it write?
+  const canPush = repo.permissions && repo.permissions.push;
+  setConn(true, repo.full_name);
+  if (!canPush){
+    status('Step 3 — connected to ' + repo.full_name + ' as ' + who.login + ', but this token is read-only. Edit it and set Contents to "Read and write", then reconnect.', 'err');
+    return;
+  }
+  status('Connected — ' + repo.full_name + (repo.private ? ' (private)' : ' (public)') + ', writing as ' + who.login + '.', 'ok');
+  $('setupBox').open = false;
 };
 $('forgetBtn').onclick = () => {
   store.del('nb_token'); $('ghToken').value = '';
