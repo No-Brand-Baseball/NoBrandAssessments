@@ -49,7 +49,9 @@ header.top{
 .top-in{display:flex;align-items:baseline;gap:12px;padding:14px 16px 12px;min-width:0}
 .brand{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;font-weight:700;letter-spacing:.14em;font-size:17px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .brand span{color:var(--amber)}
-.top-meta{margin-left:auto;font-size:12px;letter-spacing:.08em;flex:none;white-space:nowrap}
+.navlink{margin-left:auto;font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.1em;font-size:13px;color:var(--muted);text-decoration:none;border-bottom:1px solid transparent;flex:none}
+.navlink:hover,.navlink:focus{color:var(--amber);border-bottom-color:var(--amber)}
+.top-meta{margin-left:16px;font-size:12px;letter-spacing:.08em;flex:none;white-space:nowrap}
 .top-meta b{font-weight:600}
 .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--flag);margin-right:6px;vertical-align:middle}
 .dot.on{background:var(--ok)}
@@ -129,6 +131,8 @@ input.num{-moz-appearance:textfield}
 .grade button{background:transparent;border:none;border-right:1px solid var(--line);width:30px;height:34px;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--muted)}
 .grade button:last-child{border-right:none}
 .grade button[aria-pressed=true]{background:var(--amber);color:#12181B;font-weight:600}
+.grade button[data-half]{width:26px;color:var(--muted);border-left:1px solid var(--line)}
+.grade button[data-half][aria-pressed=true]{background:var(--amber);color:#12181B}
 .qual{display:inline-flex;gap:4px;margin-left:6px}
 .qual button{background:transparent;border:1px solid var(--line);border-radius:2px;padding:0 7px;height:34px;font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;font-size:11.5px;letter-spacing:.06em;color:var(--muted)}
 .qual button[aria-pressed=true]{border-color:var(--flag);color:var(--flag)}
@@ -186,6 +190,7 @@ details.setup summary{cursor:pointer;font-family:"Barlow Condensed",sans-serif;t
 <header class="top">
   <div class="wrap top-in">
     <div class="brand">No Brand<span class="long"> <span style="color:var(--amber)">/</span> Assessment</span></div>
+    <a class="navlink" href="library.html">Library</a>
     <div class="top-meta cond"><span class="dot" id="connDot"></span><b id="connTxt">Not connected</b></div>
   </div>
 </header>
@@ -215,14 +220,15 @@ details.setup summary{cursor:pointer;font-family:"Barlow Condensed",sans-serif;t
 
   <div class="card">
     <div class="grid3">
-      <label class="fld"><span class="lab">Athlete</span><input type="text" id="fAthlete" list="athleteList" placeholder="Last, First" autocomplete="off"><datalist id="athleteList"></datalist></label>
+      <label class="fld"><span class="lab">Athlete</span><select id="fAthlete"></select></label>
       <label class="fld"><span class="lab">Date</span><input type="date" id="fDate"></label>
       <label class="fld"><span class="lab">Assessed by</span><input type="text" id="fBy" placeholder="Derek / Tyler" autocomplete="off"></label>
     </div>
     <div style="margin-top:12px" class="tabs" id="typeTabs">
-      <button data-type="quick" aria-pressed="true">Quick</button>
-      <button data-type="full" aria-pressed="false">Full</button>
-      <button data-type="anatomical" aria-pressed="false">Anatomical</button>
+      <button data-type="table" aria-pressed="true">Table</button>
+      <button data-type="rom" aria-pressed="false">ROM</button>
+      <button data-type="strength" aria-pressed="false">Strength</button>
+      <button data-type="anatomical" aria-pressed="false">Lengths</button>
     </div>
     <div class="hist" id="histLine" style="margin-top:10px">No prior assessments loaded.</div>
   </div>
@@ -247,6 +253,7 @@ details.setup summary{cursor:pointer;font-family:"Barlow Condensed",sans-serif;t
 <div class="savebar">
   <div class="in">
     <div class="status" id="status">Fill in the athlete and date to begin.</div>
+    <button class="btn ghost" id="syncBtn" style="display:none">Sync</button>
     <button class="btn ghost" id="loadBtn">Load history</button>
     <button class="btn" id="saveBtn">Save assessment</button>
   </div>
@@ -267,102 +274,97 @@ const store = {
   del(k){ delete mem[k]; try { localStorage.removeItem(k); } catch(e){} }
 };
 
+const ROSTER = ["Paul Skenes","Bubba Chandler","Grant Taylor","MacKenzie Gore","Garrett Edwards","Cole Henry","Joey Volchko","Matt Scott","JT Quinn","Brian Curley","Pat Monteverde","Caden Grice","Caleb Bolden","Hunter Barco","Thomas Harrington","Tom Cosgrove","Cade Gibson","Drew Dowd","Striker Pence","Mason Kosowick","Derek Groomer"];
+
+/* Qualifier vocabularies, taken from how Derek actually writes his sheets */
+const Q_HIP   = ['NO SLIDE','SMALL SLIDE','BIG SLIDE','LATE','TIGHT','LOOSE','STIFF'];
+const Q_TSP   = ['HIP SHIFT','TIGHT'];
+const Q_NECK  = ['TWIST','ELEVATION','TIGHT'];
+const Q_TIGHT = ['TIGHT'];
+
 /* ---------- field schema ----------
-   kind: num | grade | yn | sel
-   pair: true  -> bilateral (right + left), key becomes key_r / key_l
-   qual: array -> optional qualifier chips on a grade field
-   unit: shown after the label
-   asym: threshold as a fraction, e.g. .10 = flag >10% side-to-side
+   kind: num | grade | yn | negpos | sel
+   grade fields take half steps (2.5) via the ½ toggle
+   pair: true -> bilateral, key becomes key_r / key_l
+   asym: side-to-side flag threshold as a fraction
 ------------------------------------ */
 const SECTIONS = {
-  quick: [
-    { title:'Cervical & posture', fields:[
-      { key:'neck_flexion',  label:'Neck flexion',   kind:'grade' },
-      { key:'neck_extension',label:'Neck extension', kind:'grade' },
-      { key:'neck_rot',      label:'Neck rotation',  kind:'grade', pair:true },
-      { key:'kyphotic',      label:'Kyphotic',       kind:'yn' },
-      { key:'pelvic_tilt',   label:'Pelvic tilt',    kind:'sel', opts:['','NEUTRAL','SLIGHT ANTERIOR','ANTERIOR','SLIGHT POSTERIOR','POSTERIOR'] }
-    ]},
-    { title:'Shoulder & thoracic', fields:[
-      { key:'ant_roll',       label:'Anterior roll',      kind:'yn', pair:true },
-      { key:'sh_abduction',   label:'Shoulder abduction', kind:'grade' },
-      { key:'supine_flexion', label:'Supine flexion',     kind:'grade' },
-      { key:'tspine',         label:'T-spine rotation',   kind:'grade', pair:true },
-      { key:'sh_ir', label:'Shoulder IR', kind:'num', unit:'°', pair:true, asym:.10 },
-      { key:'sh_er', label:'Shoulder ER', kind:'num', unit:'°', pair:true, asym:.10 }
-    ]},
-    { title:'Hip & lower half', fields:[
-      { key:'manual_hip',  label:'Manual hip',        kind:'grade', pair:true, qual:['TIGHT','SLIDE','PAIN'] },
-      { key:'thomas',      label:'Thomas test',       kind:'yn',    pair:true },
-      { key:'active_hip',  label:'Active hip flexion',kind:'num', unit:'°', pair:true, asym:.08 },
-      { key:'hammy',       label:'Active hamstring',  kind:'num', unit:'°', pair:true, asym:.08 },
-      { key:'hip_ir',      label:'Hip IR',            kind:'num', unit:'°', pair:true, asym:.15 },
-      { key:'hip_er',      label:'Hip ER',            kind:'num', unit:'°', pair:true, asym:.15 },
-      { key:'ankle',       label:'Ankle DF',          kind:'num', unit:'°', pair:true, asym:.10 }
-    ]}
-  ],
-  full: [
+  table: [
     { title:'Static observation', fields:[
       { key:'static_posture', label:'Static posture', kind:'sel', opts:['','NEUTRAL','SWAYBACK','FLAT BACK','KYPHOTIC-LORDOTIC'] },
       { key:'infrasternal',   label:'Infrasternal angle', kind:'sel', opts:['','NARROW','NEUTRAL','WIDE'] },
       { key:'foot_type',      label:'Foot arch', kind:'sel', opts:['','HIGH','NEUTRAL','FLAT'] },
+      { key:'kyphotic',       label:'Kyphotic', kind:'yn' },
+      { key:'pelvic_tilt',    label:'Pelvic tilt', kind:'sel', opts:['','NEUTRAL','SLIGHT ANTERIOR','ANTERIOR','SLIGHT POSTERIOR','POSTERIOR'] },
       { key:'walking',        label:'Walking obs.', kind:'sel', pair:true, opts:['','NORMAL','EVERSION','INVERSION'] },
-      { key:'femur_obs',      label:'Femur obs.',   kind:'sel', pair:true, opts:['','NORMAL','ROTATE R','ROTATE L'] }
+      { key:'femur_obs',      label:'Femur obs.', kind:'sel', pair:true, opts:['','NORMAL','ROTATE R','ROTATE L'] }
     ]},
-    { title:'Cervical & posture', fields:[
-      { key:'neck_flexion',  label:'Neck flexion',   kind:'grade' },
-      { key:'neck_extension',label:'Neck extension', kind:'grade' },
-      { key:'neck_rot',      label:'Neck rotation',  kind:'grade', pair:true },
-      { key:'kyphotic',      label:'Kyphotic',       kind:'yn' },
-      { key:'pelvic_tilt',   label:'Pelvic tilt',    kind:'sel', opts:['','NEUTRAL','SLIGHT ANTERIOR','ANTERIOR','SLIGHT POSTERIOR','POSTERIOR'] }
+    { title:'Cervical', fields:[
+      { key:'neck_flexion',   label:'Neck flexion', kind:'grade', qual:Q_TIGHT },
+      { key:'neck_extension', label:'Neck extension', kind:'grade', qual:Q_TIGHT },
+      { key:'neck_rot',       label:'Neck rotation', kind:'grade', pair:true, qual:Q_NECK }
     ]},
     { title:'Shoulder & thoracic', fields:[
-      { key:'ant_roll',       label:'Anterior roll',      kind:'yn', pair:true },
-      { key:'sh_abduction',   label:'Shoulder abduction', kind:'grade' },
-      { key:'supine_flexion', label:'Supine flexion',     kind:'grade' },
-      { key:'tspine',         label:'T-spine rotation',   kind:'grade', pair:true },
-      { key:'sh_ir', label:'Shoulder IR', kind:'num', unit:'°', pair:true, asym:.10 },
-      { key:'sh_er', label:'Shoulder ER', kind:'num', unit:'°', pair:true, asym:.10 }
+      { key:'sh_abduction',   label:'Shoulder abduction', kind:'grade', qual:Q_TIGHT },
+      { key:'supine_flexion', label:'Supine flexion', kind:'grade', qual:Q_TIGHT },
+      { key:'ant_roll',       label:'Anterior roll', kind:'yn', pair:true },
+      { key:'tspine',         label:'T-spine rotation', kind:'grade', pair:true, qual:Q_TSP }
+    ]},
+    { title:'Hip', fields:[
+      { key:'manual_hip', label:'Manual hip', kind:'grade', pair:true, qual:Q_HIP },
+      { key:'thomas',     label:'Thomas test', kind:'negpos', pair:true }
+    ]}
+  ],
+  rom: [
+    { title:'Shoulder', fields:[
+      { key:'sh_ir', label:'Shoulder IR', kind:'num', unit:'\u00b0', pair:true, asym:.10, deg:true },
+      { key:'sh_er', label:'Shoulder ER', kind:'num', unit:'\u00b0', pair:true, asym:.10, deg:true }
     ]},
     { title:'Hip & lower half', fields:[
-      { key:'manual_hip',  label:'Manual hip',         kind:'grade', pair:true, qual:['TIGHT','SLIDE','PAIN'] },
-      { key:'thomas',      label:'Thomas test',        kind:'yn',    pair:true },
-      { key:'active_hip',  label:'Active hip flexion', kind:'num', unit:'°', pair:true, asym:.08 },
-      { key:'hammy',       label:'Active hamstring',   kind:'num', unit:'°', pair:true, asym:.08 },
-      { key:'hip_ir',      label:'Hip IR',             kind:'num', unit:'°', pair:true, asym:.15 },
-      { key:'hip_er',      label:'Hip ER',             kind:'num', unit:'°', pair:true, asym:.15 },
-      { key:'ankle',       label:'Ankle DF',           kind:'num', unit:'°', pair:true, asym:.10 }
+      { key:'hip_ir',      label:'Hip IR', kind:'num', unit:'\u00b0', pair:true, asym:.15, deg:true },
+      { key:'hip_er',      label:'Hip ER', kind:'num', unit:'\u00b0', pair:true, asym:.15, deg:true },
+      { key:'hip_flexion', label:'Hip flexion', kind:'num', unit:'\u00b0', pair:true, asym:.08, deg:true },
+      { key:'hammy',       label:'Hamstring', kind:'num', unit:'\u00b0', pair:true, asym:.08, deg:true },
+      { key:'ankle',       label:'Ankle DF', kind:'num', unit:'\u00b0', pair:true, asym:.10, deg:true }
+    ]}
+  ],
+  strength: [
+    { title:'Shoulder', fields:[
+      { key:'str_ir', label:'Shoulder IR', kind:'num', pair:true, asym:.10 },
+      { key:'str_er', label:'Shoulder ER', kind:'num', pair:true, asym:.10 }
     ]},
-    { title:'Strength', fields:[
-      { key:'str_ir',  label:'Shoulder IR', kind:'num', pair:true, asym:.10 },
-      { key:'str_er',  label:'Shoulder ER', kind:'num', pair:true, asym:.10 },
-      { key:'str_ab',  label:'Hip ABD',     kind:'num', pair:true, asym:.10 },
-      { key:'str_add', label:'Hip ADD',     kind:'num', pair:true, asym:.10 },
-      { key:'grip_90', label:'Grip @ 90°',  kind:'num', pair:true, asym:.10 },
-      { key:'grip_0',  label:'Grip @ 0°',   kind:'num', pair:true, asym:.10 }
+    { title:'Hip', fields:[
+      { key:'str_ab',  label:'Hip ABD', kind:'num', pair:true, asym:.10 },
+      { key:'str_add', label:'Hip ADD', kind:'num', pair:true, asym:.10 }
+    ]},
+    { title:'Grip', fields:[
+      { key:'grip_90', label:'Grip @ 90\u00b0', kind:'num', pair:true, asym:.10 },
+      { key:'grip_0',  label:'Grip @ 0\u00b0', kind:'num', pair:true, asym:.10 }
+    ]},
+    { title:'Body', fields:[
+      { key:'body_weight', label:'Body weight', kind:'num', unit:'lb' }
     ]}
   ],
   anatomical: [
     { title:'Upper', fields:[
-      { key:'humerus',     label:'Humerus',     kind:'num', unit:'in', pair:true, asym:.05 },
-      { key:'forearm',     label:'Forearm',     kind:'num', unit:'in', pair:true, asym:.05 },
+      { key:'humerus',     label:'Humerus', kind:'num', unit:'in', pair:true, asym:.05 },
+      { key:'forearm',     label:'Forearm', kind:'num', unit:'in', pair:true, asym:.05 },
       { key:'hand_length', label:'Hand length', kind:'num', unit:'in', pair:true, asym:.05 },
-      { key:'hand_span',   label:'Hand span',   kind:'num', unit:'in', pair:true, asym:.05 }
+      { key:'hand_span',   label:'Hand span', kind:'num', unit:'in', pair:true, asym:.05 }
     ]},
     { title:'Trunk & lower', fields:[
-      { key:'torso', label:'Torso',  kind:'num', unit:'in' },
-      { key:'femur', label:'Femur',  kind:'num', unit:'in', pair:true, asym:.05 },
-      { key:'tibia', label:'Tibia',  kind:'num', unit:'in', pair:true, asym:.05 }
+      { key:'torso', label:'Torso', kind:'num', unit:'in' },
+      { key:'femur', label:'Femur', kind:'num', unit:'in', pair:true, asym:.05 },
+      { key:'tibia', label:'Tibia', kind:'num', unit:'in', pair:true, asym:.05 }
     ]},
-    { title:'Derived', fields:[
-      { key:'body_weight', label:'Body weight', kind:'num', unit:'lb' },
-      { key:'height',      label:'Height',      kind:'num', unit:'in' }
+    { title:'Body', fields:[
+      { key:'height',      label:'Height', kind:'num', unit:'in' },
+      { key:'body_weight', label:'Body weight', kind:'num', unit:'lb' }
     ]}
   ]
 };
-
 /* ---------- state ---------- */
-let type = 'quick';
+let type = 'table';
 let values = {};      // key -> value
 let priors = [];      // prior assessments for this athlete, newest first
 let prior = null;     // most recent prior of the same type
@@ -449,20 +451,40 @@ function control(f, key, side){
   }
 
   if (f.kind === 'grade'){
+    // Derek records half steps (2.5, 1.5) constantly — whole buttons plus a half toggle
     const g = document.createElement('div'); g.className = 'grade';
+    const sync = () => {
+      const v = values[key];
+      const base = v === null || v === undefined ? null : Math.floor(v);
+      [...g.children].forEach(c => {
+        if (c.dataset.half !== undefined) c.setAttribute('aria-pressed', String(v != null && v % 1 === 0.5));
+        else c.setAttribute('aria-pressed', String(base !== null && Number(c.dataset.n) === base));
+      });
+    };
     [0,1,2,3].forEach(n => {
       const b = document.createElement('button');
-      b.type = 'button'; b.textContent = n;
+      b.type = 'button'; b.textContent = n; b.dataset.n = n;
       b.setAttribute('aria-pressed','false');
       b.setAttribute('aria-label', f.label + ' grade ' + n);
       b.onclick = () => {
-        const on = values[key] === n;
-        values[key] = on ? null : n;
-        [...g.children].forEach((c,idx) => c.setAttribute('aria-pressed', String(!on && idx === n)));
-        recompute();
+        const cur = values[key];
+        const half = cur != null && cur % 1 === 0.5;
+        values[key] = (cur != null && Math.floor(cur) === n && !half) ? null : n + (half ? 0.5 : 0);
+        sync(); recompute();
       };
       g.appendChild(b);
     });
+    const h = document.createElement('button');
+    h.type = 'button'; h.textContent = '\u00bd'; h.dataset.half = '1';
+    h.setAttribute('aria-pressed','false');
+    h.setAttribute('aria-label', f.label + ' add a half step');
+    h.onclick = () => {
+      const cur = values[key];
+      if (cur === null || cur === undefined) return;
+      values[key] = cur % 1 === 0.5 ? Math.floor(cur) : cur + 0.5;
+      sync(); recompute();
+    };
+    g.appendChild(h);
     host.appendChild(g);
     if (f.qual){
       const q = document.createElement('div'); q.className = 'qual';
@@ -485,9 +507,9 @@ function control(f, key, side){
     return host;
   }
 
-  if (f.kind === 'yn'){
+  if (f.kind === 'yn' || f.kind === 'negpos'){
     const y = document.createElement('div'); y.className = 'yn';
-    ['YES','NO'].forEach(t => {
+    (f.kind === 'negpos' ? ['NEG','POS'] : ['YES','NO']).forEach(t => {
       const b = document.createElement('button');
       b.type = 'button'; b.textContent = t;
       b.setAttribute('aria-pressed','false');
@@ -712,6 +734,11 @@ $('connectBtn').onclick = async () => {
   }
   status('Connected — ' + repo.full_name + (repo.private ? ' (private)' : ' (public)') + ', writing as ' + who.login + '.', 'ok');
   $('setupBox').open = false;
+  try {
+    const dir = await gh('/contents/assessments?ref=' + encodeURIComponent(c.branch));
+    knownSlugs = (dir || []).filter(d => d.type === 'dir').map(d => d.name);
+  } catch(e){ knownSlugs = []; }
+  await flush(true);
 };
 $('forgetBtn').onclick = () => {
   store.del('nb_token'); $('ghToken').value = '';
@@ -750,6 +777,51 @@ async function loadHistory(){
 }
 $('loadBtn').onclick = loadHistory;
 
+/* ---------- offline queue ----------
+   Facility wifi is unreliable. A failed save is never lost: it parks on the
+   device and flushes when the connection comes back. */
+function queue(){ try { return JSON.parse(store.get('nb_queue') || '[]'); } catch(e){ return []; } }
+function setQueue(q){ store.set('nb_queue', JSON.stringify(q)); paintQueue(); }
+function enqueue(p){ const q = queue(); q.push(p); setQueue(q); }
+
+function paintQueue(){
+  const n = queue().length;
+  const b = $('syncBtn');
+  b.style.display = n ? '' : 'none';
+  b.textContent = 'Sync ' + n + ' pending';
+}
+
+async function commit(p){
+  const path = 'assessments/' + p.athlete_id + '/' + p.date + '-' + p.type + '.json';
+  const existing = await gh('/contents/' + path + '?ref=' + encodeURIComponent(cfg().branch));
+  const body = {
+    message: 'assessment: ' + p.athlete + ' ' + p.date + ' (' + p.type + ')',
+    content: b64(JSON.stringify(p, null, 2)),
+    branch: cfg().branch
+  };
+  if (existing && existing.sha) body.sha = existing.sha;
+  await gh('/contents/' + path, { method:'PUT', body: JSON.stringify(body) });
+  return path;
+}
+
+async function flush(quiet){
+  let q = queue();
+  if (!q.length){ if (!quiet) status('Nothing pending.'); return; }
+  if (!cfg().token){ if (!quiet) status(q.length + ' saved on this device, waiting on a connection.', 'err'); return; }
+  status('Syncing ' + q.length + '…');
+  const left = [];
+  let done = 0;
+  for (const p of q){
+    try { await commit(p); done++; }
+    catch(e){ left.push(p); }
+  }
+  setQueue(left);
+  if (left.length) status(done + ' synced, ' + left.length + ' still waiting — they are safe on this device.', 'err');
+  else status(done + ' pending assessment' + (done===1?'':'s') + ' synced.', 'ok');
+}
+$('syncBtn').onclick = () => flush(false);
+window.addEventListener('online', () => flush(true));
+
 /* ---------- save ---------- */
 function payload(){
   return {
@@ -757,6 +829,7 @@ function payload(){
     org: 'No Brand Baseball Analytics',
     athlete: $('fAthlete').value.trim(),
     athlete_id: slug($('fAthlete').value),
+    sheet: type,
     date: $('fDate').value,
     type: type,
     assessed_by: $('fBy').value.trim(),
@@ -770,20 +843,16 @@ $('saveBtn').onclick = async () => {
   const filled = Object.values(p.values).filter(v => v !== null && v !== undefined && !(Array.isArray(v) && !v.length)).length;
   if (!filled){ status('Nothing entered yet.', 'err'); return; }
   store.set('nb_by', p.assessed_by);
-  const path = 'assessments/' + p.athlete_id + '/' + p.date + '-' + p.type + '.json';
-  status('Saving ' + path + '…');
+  status('Saving…');
   try {
-    const existing = await gh('/contents/' + path + '?ref=' + encodeURIComponent(cfg().branch));
-    const body = {
-      message: 'assessment: ' + p.athlete + ' ' + p.date + ' (' + p.type + ')',
-      content: b64(JSON.stringify(p, null, 2)),
-      branch: cfg().branch
-    };
-    if (existing && existing.sha) body.sha = existing.sha;
-    await gh('/contents/' + path, { method:'PUT', body: JSON.stringify(body) });
-    status('Saved — ' + filled + ' measures committed to ' + path + (existing ? ' (replaced earlier entry for this date)' : ''), 'ok');
+    const path = await commit(p);
+    status('Saved — ' + filled + ' measures committed to ' + path, 'ok');
+    await flush(true);
     await loadHistory();
-  } catch(e){ status(e.message, 'err'); }
+  } catch(e){
+    enqueue(p);
+    status('No connection — held on this device (' + queue().length + ' pending). It will sync automatically, or hit Sync when you are back online.', 'err');
+  }
 };
 
 /* ---------- export ---------- */
@@ -824,7 +893,85 @@ $('typeTabs').addEventListener('click', e => {
   if (priors.length) $('histLine').innerHTML += '';
 });
 
+window.__values = () => values;  /* test hook */
+
+/* ---------- roster ---------- */
+function fillRoster(){
+  const sel = $('fAthlete');
+  const extra = JSON.parse(store.get('nb_extra_athletes') || '[]');
+  const all = ROSTER.concat(extra).sort((a,b) => a.localeCompare(b));
+  sel.innerHTML = '<option value="">\u2014 choose \u2014</option>' +
+    all.map(n => '<option value="'+esc(n)+'">'+esc(n)+'</option>').join('') +
+    '<option value="__new">+ add an athlete\u2026</option>';
+}
+/* Athletes added on the day become permanent folder names, so this path guards
+   itself: exact matches reuse the existing athlete, near matches ask first. */
+let knownSlugs = [];
+
+function editDistance(a,b){
+  const m=a.length,n=b.length,d=Array.from({length:m+1},(_,i)=>[i].concat(Array(n).fill(0)));
+  for(let j=0;j<=n;j++) d[0][j]=j;
+  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++)
+    d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));
+  return d[m][n];
+}
+function allKnown(){
+  const extra = JSON.parse(store.get('nb_extra_athletes') || '[]');
+  return { names: ROSTER.concat(extra), extra };
+}
+function nearest(sl){
+  const { names } = allKnown();
+  let best = null, bestD = 99;
+  names.concat(knownSlugs).forEach(n => {
+    const s2 = n.includes('-') && n === n.toLowerCase() ? n : slug(n);
+    if (!s2 || s2 === sl) return;
+    const d = editDistance(sl, s2);
+    if (d < bestD){ bestD = d; best = n; }
+  });
+  return bestD <= 2 ? { name: best, d: bestD } : null;
+}
+
+$('fAthlete').addEventListener('change', () => {
+  const sel = $('fAthlete');
+  if (sel.value !== '__new') return;
+  const raw = prompt('Athlete name, spelled the way it should appear everywhere:');
+  const name = (raw || '').trim().replace(/\s+/g,' ');
+  if (!name){ sel.value = ''; return; }
+  const sl = slug(name);
+  const { names, extra } = allKnown();
+
+  const exact = names.find(n => slug(n) === sl) ||
+                (knownSlugs.includes(sl) ? name : null);
+  if (exact){
+    fillRoster();
+    sel.value = names.find(n => slug(n) === sl) || name;
+    if (sel.value !== name) status('Already on the roster as "' + sel.value + '" — using that.', 'ok');
+    return;
+  }
+
+  const near = nearest(sl);
+  if (near && !confirm('"' + name + '" looks very close to "' + near.name + '" already on file.\n\n' +
+                       'Adding it creates a separate athlete that will never merge.\n\n' +
+                       'OK to add "' + name + '" anyway, or Cancel to pick the existing one.')){
+    sel.value = ''; return;
+  }
+
+  extra.push(name);
+  store.set('nb_extra_athletes', JSON.stringify(extra));
+  fillRoster();
+  sel.value = name;
+  status('Added "' + name + '" on this device.', 'ok');
+});
+
 /* ---------- boot ---------- */
+fillRoster();
+paintQueue();
+(function(){
+  let ok = true;
+  try { localStorage.setItem('nb_t','1'); localStorage.removeItem('nb_t'); } catch(e){ ok = false; }
+  if (!ok) status('This browser is blocking local storage — unsaved work will not survive closing the tab. Turn off Private Browsing before a session.', 'err');
+  else if (queue().length) status(queue().length + ' assessment' + (queue().length===1?'':'s') + ' waiting to sync from an earlier session.', 'err');
+})();
 loadCfg();
 $('fDate').value = new Date().toISOString().slice(0,10);
 if (store.get('nb_token')) { $('connectBtn').click(); } else { $('setupBox').open = true; }
