@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>No Brand Baseball Analytics — Import</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0E1316;--panel:#151D21;--panel-2:#1B252A;--line:#2A383F;--bone:#E6EDEF;--muted:#7E939C;--amber:#E3B04B;--flag:#E2654B;--ok:#5FA88C;--r:#8FB6C4;--l:#C7A87E}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;overflow-x:hidden;max-width:100%}
+body{background:var(--ink);color:var(--bone);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:15px;line-height:1.45;padding-bottom:60px;-webkit-text-size-adjust:100%}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+::placeholder{color:#4E6069;opacity:1;font-style:italic}
+.wrap{max-width:1040px;margin:0 auto;padding:0 16px}
+header.top{border-bottom:1px solid var(--line);background:linear-gradient(180deg,#131B1F,#0E1316);position:sticky;top:0;z-index:20}
+.top-in{display:flex;align-items:baseline;gap:16px;padding:14px 16px 12px;max-width:1040px;margin:0 auto;min-width:0}
+.brand{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;font-weight:700;letter-spacing:.14em;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.brand span{color:var(--amber)}
+.navlink{margin-left:auto;font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.1em;font-size:13px;color:var(--muted);text-decoration:none;border-bottom:1px solid transparent;flex:none}
+.navlink:hover,.navlink:focus{color:var(--amber);border-bottom-color:var(--amber)}
+.top-meta{margin-left:16px;font-size:12px;letter-spacing:.08em;flex:none;white-space:nowrap;font-family:"Barlow Condensed",sans-serif;text-transform:uppercase}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--flag);margin-right:6px;vertical-align:middle}
+.dot.on{background:var(--ok)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:16px;margin:16px 0}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+@media(max-width:700px){.grid3{grid-template-columns:1fr}}
+label.fld{display:block}
+label.fld .lab{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;font-family:"Barlow Condensed",sans-serif;font-weight:600}
+input{width:100%;background:var(--ink);border:1px solid var(--line);border-radius:2px;padding:9px 10px;font-family:"IBM Plex Mono",monospace;font-size:15px}
+input:focus,button:focus-visible,a:focus-visible{outline:2px solid var(--amber);outline-offset:1px}
+.btn{background:var(--amber);color:#12181B;border:none;border-radius:2px;padding:11px 18px;font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.1em;font-weight:700;font-size:15px}
+.btn.ghost{background:transparent;color:var(--bone);border:1px solid var(--line)}
+.hint{font-size:12.5px;color:var(--muted);margin-top:8px}
+details.setup summary{cursor:pointer;font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-size:13px;padding:4px 0}
+.status{font-size:13px;color:var(--muted);margin-top:10px}
+.status.err{color:var(--flag)} .status.ok{color:var(--ok)}
+
+h2.sec{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.14em;font-size:13px;color:var(--muted);font-weight:600;margin:26px 0 8px}
+.roster{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.who{display:block;text-decoration:none;color:inherit;background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:13px 14px;transition:border-color .12s ease}
+.who:hover{border-color:var(--amber)}
+.who .nm{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.05em;font-size:18px;font-weight:600;line-height:1.1}
+.who .meta{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--muted);margin-top:5px}
+.sheets{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap}
+.chip{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;font-size:10.5px;letter-spacing:.08em;padding:1px 6px;border:1px solid var(--line);border-radius:2px;color:var(--muted)}
+.chip.on{border-color:var(--amber);color:var(--amber)}
+.who.none{opacity:.55}
+.who.none .nm{color:var(--muted)}
+.counts{font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--muted);margin-bottom:2px}
+.counts b{color:var(--bone);font-weight:500}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brand">No Brand <span>/</span> Import</div>
+    <a class="navlink" href="library.html">Library</a>
+    <div class="top-meta"><span class="dot" id="connDot"></span><b id="connTxt">Not connected</b></div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="card">
+    <details class="setup" id="setupBox">
+      <summary>Repository &amp; access</summary>
+      <div style="margin-top:12px">
+        <div class="grid3">
+          <label class="fld"><span class="lab">Owner</span><input type="text" id="ghOwner" placeholder="org or username" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+          <label class="fld"><span class="lab">Repository</span><input type="text" id="ghRepo" placeholder="repo name" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+          <label class="fld"><span class="lab">Branch</span><input type="text" id="ghBranch" placeholder="main" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+        </div>
+        <div style="margin-top:10px">
+          <label class="fld"><span class="lab">Access token</span><input type="password" id="ghToken" placeholder="paste your token here" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" id="connectBtn">Connect</button>
+          <button class="btn ghost" id="forgetBtn">Forget token</button>
+        </div>
+      </div>
+    </details>
+    <div class="status" id="status">Connect first.</div>
+  </div>
+
+  <div class="card">
+    <h2 class="sec" style="margin-top:0">Assessment files</h2>
+    <p style="font-size:13.5px;color:var(--muted);margin:0 0 12px">
+      Pick any number of assessment <code>.json</code> files. Each one is filed under the
+      athlete named inside it, so the folder they came from and whatever the computer
+      renamed them to does not matter.
+    </p>
+    <input type="file" id="files" multiple accept=".json,application/json"
+           style="padding:12px;background:var(--ink)">
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" id="goBtn">Import</button>
+    </div>
+  </div>
+
+  <div class="card" id="resultCard" style="display:none">
+    <h2 class="sec" style="margin-top:0">Result</h2>
+    <div id="result"></div>
+  </div>
+</div>
+
+<script>
+const mem = {};
+const store = {
+  get(k){ try{ const v=localStorage.getItem(k); return v===null?(k in mem?mem[k]:null):v; }catch(e){ return k in mem?mem[k]:null; } },
+  set(k,v){ mem[k]=v; try{ localStorage.setItem(k,v); }catch(e){} },
+  del(k){ delete mem[k]; try{ localStorage.removeItem(k); }catch(e){} }
+};
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const slug = s => (s||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+
+function cfg(){ return { owner:$('ghOwner').value.trim(), repo:$('ghRepo').value.trim(),
+                         branch:$('ghBranch').value.trim()||'main', token:$('ghToken').value.trim() }; }
+function saveCfg(){ const c=cfg(); store.set('nb_owner',c.owner); store.set('nb_repo',c.repo); store.set('nb_branch',c.branch); store.set('nb_token',c.token); }
+function loadCfg(){
+  $('ghOwner').value=store.get('nb_owner')||''; $('ghRepo').value=store.get('nb_repo')||'';
+  $('ghBranch').value=store.get('nb_branch')||'main'; $('ghToken').value=store.get('nb_token')||'';
+}
+async function gh(path, opts){
+  const c=cfg();
+  if(!c.owner||!c.repo||!c.token) throw new Error('Connect the repository first.');
+  const r = await fetch('https://api.github.com/repos/'+c.owner+'/'+c.repo+path, Object.assign({
+    headers:{'Authorization':'Bearer '+c.token,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'}
+  }, opts||{}));
+  if(r.status===404) return null;
+  if(!r.ok) throw new Error('GitHub '+r.status+': '+(await r.text()).slice(0,140));
+  return r.json();
+}
+function b64(str){
+  const bytes=new TextEncoder().encode(str); let bin='';
+  bytes.forEach(b=>bin+=String.fromCharCode(b)); return btoa(bin);
+}
+function status(m,cls){ const s=$('status'); s.textContent=m; s.className='status'+(cls?' '+cls:''); }
+function setConn(ok,t){ $('connDot').className='dot'+(ok?' on':''); $('connTxt').textContent=t; }
+
+$('connectBtn').onclick = async () => {
+  saveCfg(); status('Connecting…');
+  try {
+    const r = await gh('');
+    if(!r) throw new Error('Cannot see that repository — check owner, name, and token access.');
+    setConn(true, r.full_name); $('setupBox').open=false; status('Connected to '+r.full_name+'.','ok');
+  } catch(e){ setConn(false,'Not connected'); status(e.message,'err'); }
+};
+$('forgetBtn').onclick = () => { store.del('nb_token'); $('ghToken').value=''; setConn(false,'Not connected'); status('Token removed.'); };
+
+$('goBtn').onclick = async () => {
+  const files = [...$('files').files];
+  if (!files.length){ status('Pick some files first.','err'); return; }
+  const rows = [];
+  $('resultCard').style.display=''; $('result').innerHTML='';
+  status('Importing '+files.length+' file'+(files.length===1?'':'s')+'…');
+
+  for (const f of files){
+    let rec;
+    try { rec = JSON.parse(await f.text()); }
+    catch(e){ rows.push(['bad', f.name, 'not readable as JSON']); continue; }
+
+    const id   = rec.athlete_id || slug(rec.athlete);
+    const date = rec.date;
+    const type = rec.type;
+    if (!id || !date || !type){
+      rows.push(['bad', f.name, 'missing athlete, date or sheet type — skipped']); continue;
+    }
+    const path = 'assessments/'+id+'/'+date+'-'+type+'.json';
+    try {
+      const existing = await gh('/contents/'+path+'?ref='+encodeURIComponent(cfg().branch));
+      const body = { message:'import: '+(rec.athlete||id)+' '+date+' ('+type+')',
+                     content: b64(JSON.stringify(rec,null,2)), branch: cfg().branch };
+      if (existing && existing.sha) body.sha = existing.sha;
+      await gh('/contents/'+path, { method:'PUT', body: JSON.stringify(body) });
+      rows.push([existing?'replaced':'ok', f.name, path]);
+    } catch(e){ rows.push(['bad', f.name, e.message]); }
+    paint(rows);
+  }
+  const good = rows.filter(r=>r[0]!=='bad').length;
+  status(good+' of '+files.length+' filed.', good===files.length?'ok':'err');
+};
+
+function paint(rows){
+  $('result').innerHTML = rows.map(([st,name,msg]) =>
+    '<div class="flagrow" style="display:flex;gap:10px;align-items:baseline;padding:6px 0;border-bottom:1px solid rgba(42,56,63,.5);font-size:13px">' +
+    '<span class="chip'+(st==='bad'?'':' on')+'" style="flex:none">'+(st==='bad'?'SKIPPED':st==='replaced'?'REPLACED':'FILED')+'</span>' +
+    '<span style="font-family:\'IBM Plex Mono\',monospace;color:var(--muted);flex:none">'+esc(name)+'</span>' +
+    '<span style="font-family:\'IBM Plex Mono\',monospace">'+esc(msg)+'</span></div>').join('');
+}
+
+loadCfg();
+if (store.get('nb_token')) $('connectBtn').click(); else $('setupBox').open = true;
+</script>
+</body>
+</html>
