@@ -29,9 +29,14 @@ const enc=p=>p.split('/').map(encodeURIComponent).join('/');
 $('go').onclick=async()=>{
   $('log').innerHTML=''; $('go').disabled=true;
   try{
-    const d=await(await fetch(U('/contents/assessments'),{headers:H()})).json();
-    if(!Array.isArray(d)){say('Cannot read the repository. Check the key.','e');$('go').disabled=false;return;}
-    const loose=d.filter(f=>f.type==='file'&&f.name.endsWith('.json'));
+    let loose=[],bad=0;
+    for(const dir of ['','/assessments']){
+      const res=await fetch(U('/contents'+dir),{headers:H()});
+      if(!res.ok){bad++;continue;}
+      const d=await res.json();
+      if(Array.isArray(d))loose=loose.concat(d.filter(f=>f.type==='file'&&f.name.endsWith('.json')));
+    }
+    if(bad>1){say('Cannot read the repository. Check the key.','e');$('go').disabled=false;return;}
     if(!loose.length){say('Nothing loose. Already tidy.','o');$('go').disabled=false;return;}
     say(loose.length+' to file');
     let n=0;
