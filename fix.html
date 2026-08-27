@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>No Brand — Fix</title>
+<style>
+body{background:#0E1316;color:#E6EDEF;font:15px/1.5 system-ui,sans-serif;margin:0;padding:16px}
+h1{font-size:15px;letter-spacing:.14em;text-transform:uppercase;color:#E3B04B;margin:0 0 16px}
+input{width:100%;box-sizing:border-box;background:#0E1316;color:#E6EDEF;border:1px solid #2A383F;
+border-radius:2px;padding:11px;font-family:ui-monospace,monospace;font-size:15px;margin-bottom:9px}
+button{background:#E3B04B;color:#12181B;border:0;border-radius:2px;padding:13px 20px;
+font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:15px;width:100%}
+#log{margin-top:16px;font-family:ui-monospace,monospace;font-size:12px;white-space:pre-wrap;line-height:1.7}
+.e{color:#E2654B}.o{color:#5FA88C}
+</style></head><body>
+<h1>Fix loose records</h1>
+<input id="o" placeholder="owner" value="No-Brand-Baseball" autocapitalize="off" spellcheck="false">
+<input id="r" placeholder="repository" value="No-Brand-Assessments" autocapitalize="off" spellcheck="false">
+<input id="t" type="password" placeholder="paste your key" autocapitalize="off" spellcheck="false">
+<button id="go">Start</button>
+<div id="log"></div>
+<script>
+const $=i=>document.getElementById(i);
+const say=(m,c)=>{const d=document.createElement('div');if(c)d.className=c;d.textContent=m;$('log').appendChild(d);};
+const H=()=>({Authorization:'Bearer '+$('t').value.trim(),Accept:'application/vnd.github+json'});
+const U=p=>'https://api.github.com/repos/'+$('o').value.trim()+'/'+$('r').value.trim()+p;
+const b64=s=>{const b=new TextEncoder().encode(s);let x='';b.forEach(c=>x+=String.fromCharCode(c));return btoa(x);};
+const un=s=>new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\n/g,'')),c=>c.charCodeAt(0)));
+const enc=p=>p.split('/').map(encodeURIComponent).join('/');
+
+$('go').onclick=async()=>{
+  $('log').innerHTML=''; $('go').disabled=true;
+  try{
+    const d=await(await fetch(U('/contents/assessments'),{headers:H()})).json();
+    if(!Array.isArray(d)){say('Cannot read the repository. Check the key.','e');$('go').disabled=false;return;}
+    const loose=d.filter(f=>f.type==='file'&&f.name.endsWith('.json'));
+    if(!loose.length){say('Nothing loose. Already tidy.','o');$('go').disabled=false;return;}
+    say(loose.length+' to file');
+    let n=0;
+    for(const f of loose){
+      try{
+        const m=await(await fetch(U('/contents/'+enc(f.path)),{headers:H()})).json();
+        const rec=JSON.parse(un(m.content));
+        const id=rec.athlete_id||'';
+        if(!id||!rec.date||!rec.type){say('skip '+f.name,'e');continue;}
+        const path='assessments/'+id+'/'+rec.date+'-'+rec.type+'.json';
+        const ex=await fetch(U('/contents/'+enc(path)),{headers:H()});
+        const body={message:'file '+id+' '+rec.date,content:b64(JSON.stringify(rec,null,2))};
+        if(ex.ok)body.sha=(await ex.json()).sha;
+        const put=await fetch(U('/contents/'+enc(path)),{method:'PUT',headers:H(),body:JSON.stringify(body)});
+        if(!put.ok){say('failed '+f.name,'e');continue;}
+        await fetch(U('/contents/'+enc(f.path)),{method:'DELETE',headers:H(),
+          body:JSON.stringify({message:'tidy',sha:f.sha})});
+        n++; say(n+'. '+id+'  '+rec.date+' '+rec.type,'o');
+      }catch(e){say('error '+f.name,'e');}
+    }
+    say('');say('Done. '+n+' of '+loose.length+' filed.','o');
+  }catch(e){say(String(e),'e');}
+  $('go').disabled=false;
+};
+</script></body></html>
