@@ -61,7 +61,9 @@ header.top{
 .card h2{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.1em;font-size:15px;margin:0 0 12px;color:var(--muted);font-weight:600}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-@media(max-width:640px){.grid2,.grid3{grid-template-columns:1fr}}
+.grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px}
+@media(max-width:880px){.grid4{grid-template-columns:1fr 1fr}}
+@media(max-width:640px){.grid2,.grid3,.grid4{grid-template-columns:1fr}}
 label.fld{display:block}
 label.fld .lab{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;font-family:"Barlow Condensed",sans-serif;font-weight:600}
 input[type=text],input[type=password],input[type=date],input[type=number],select{
@@ -219,8 +221,9 @@ details.setup summary{cursor:pointer;font-family:"Barlow Condensed",sans-serif;t
   </div>
 
   <div class="card">
-    <div class="grid3">
+    <div class="grid4">
       <label class="fld"><span class="lab">Athlete</span><select id="fAthlete"></select></label>
+      <label class="fld"><span class="lab">Team <span style="text-transform:none;letter-spacing:0;font-weight:400">(optional)</span></span><select id="fTeam"></select></label>
       <label class="fld"><span class="lab">Date</span><input type="date" id="fDate"></label>
       <label class="fld"><span class="lab">Assessed by</span><input type="text" id="fBy" placeholder="Derek / Tyler" autocomplete="off"></label>
     </div>
@@ -767,6 +770,11 @@ async function loadHistory(){
     }
     loaded.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
     priors = loaded;
+    const seen = teamList(); let grew = false;
+    loaded.forEach(a => { if (a.team && !seen.includes(a.team)){ seen.push(a.team); grew = true; } });
+    if (grew) store.set('nb_teams', JSON.stringify(seen));
+    const newest = (loaded.find(a => a.team) || {}).team || '';
+    fillTeams(newest || $('fTeam').value);
     prior = loaded.find(a => a.type === type) || null;
     $('histLine').innerHTML = '<b>' + esc(name) + '</b> — ' + loaded.length + ' on file · latest ' +
       esc(loaded[0].date) + ' (' + esc(loaded[0].type) + ')' +
@@ -829,6 +837,7 @@ function payload(){
     org: 'No Brand Baseball Analytics',
     athlete: $('fAthlete').value.trim(),
     athlete_id: slug($('fAthlete').value),
+    team: $('fTeam').value === '__new' ? '' : $('fTeam').value,
     sheet: type,
     date: $('fDate').value,
     type: type,
@@ -895,6 +904,59 @@ $('typeTabs').addEventListener('click', e => {
 
 window.__values = () => values;  /* test hook */
 
+/* ---------- teams ----------
+   Optional. Stored on the assessment, so an athlete's team is whatever his most
+   recent record says. Remembered per athlete so nobody types it thirty times. */
+function teamList(){ try { return JSON.parse(store.get('nb_teams') || '[]'); } catch(e){ return []; } }
+function athTeams(){ try { return JSON.parse(store.get('nb_ath_team') || '{}'); } catch(e){ return {}; } }
+
+function fillTeams(keep){
+  const sel = $('fTeam');
+  const cur = keep !== undefined ? keep : sel.value;
+  const all = teamList().slice().sort((a,b) => a.localeCompare(b));
+  sel.innerHTML = '<option value="">\u2014 none \u2014</option>' +
+    all.map(t => '<option value="'+esc(t)+'">'+esc(t)+'</option>').join('') +
+    '<option value="__new">+ add a team\u2026</option>';
+  if (cur && all.includes(cur)) sel.value = cur;
+}
+
+function rememberTeam(){
+  const a = $('fAthlete').value, t = $('fTeam').value;
+  if (!a || a === '__new' || t === '__new') return;
+  const m = athTeams();
+  if (t) m[slug(a)] = t; else delete m[slug(a)];
+  store.set('nb_ath_team', JSON.stringify(m));
+}
+
+$('fTeam').addEventListener('change', () => {
+  const sel = $('fTeam');
+  if (sel.value !== '__new'){ rememberTeam(); return; }
+  const raw = prompt('Team name, spelled the way it should appear everywhere:');
+  const name = (raw || '').trim().replace(/\s+/g,' ');
+  if (!name){ fillTeams(''); return; }
+  const all = teamList();
+  const match = all.find(t => slug(t) === slug(name));
+  if (match){ fillTeams(match); status('Already on the list as "'+match+'".','ok'); rememberTeam(); return; }
+  const near = all.find(t => editDistance(slug(t), slug(name)) <= 2);
+  if (near && !confirm('"'+name+'" looks very close to "'+near+'" already in use.\n\n'+
+                       'Adding it makes a second team that filters separately.\n\n'+
+                       'OK to add "'+name+'" anyway, or Cancel to pick the existing one.')){
+    fillTeams(''); return;
+  }
+  all.push(name);
+  store.set('nb_teams', JSON.stringify(all));
+  fillTeams(name);
+  rememberTeam();
+});
+
+$('fAthlete').addEventListener('change', () => {
+  const a = $('fAthlete').value;
+  if (!a || a === '__new') return;
+  // a team must never carry over from the last athlete — a day of college guys
+  // followed by a pro is exactly how someone ends up on the wrong team
+  fillTeams(athTeams()[slug(a)] || '');
+});
+
 /* ---------- roster ---------- */
 function fillRoster(){
   const sel = $('fAthlete');
@@ -958,13 +1020,20 @@ $('fAthlete').addEventListener('change', () => {
 
   extra.push(name);
   store.set('nb_extra_athletes', JSON.stringify(extra));
+  const carry = $('fTeam').value;
+  if (carry && carry !== '__new'){
+    const m = athTeams(); m[slug(name)] = carry;
+    store.set('nb_ath_team', JSON.stringify(m));
+  }
   fillRoster();
   sel.value = name;
-  status('Added "' + name + '" on this device.', 'ok');
+  fillTeams(carry && carry !== '__new' ? carry : '');
+  status('Added "' + name + '"' + (carry && carry !== '__new' ? ' to ' + carry : '') + ' on this device.', 'ok');
 });
 
 /* ---------- boot ---------- */
 fillRoster();
+fillTeams();
 paintQueue();
 (function(){
   let ok = true;

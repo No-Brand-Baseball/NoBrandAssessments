@@ -39,6 +39,11 @@ details.setup summary{cursor:pointer;font-family:"Barlow Condensed",sans-serif;t
 .status{font-size:13px;color:var(--muted);margin-top:10px}
 .status.err{color:var(--flag)} .status.ok{color:var(--ok)}
 
+.teams{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 2px}
+.teams button{background:transparent;border:1px solid var(--line);border-radius:2px;padding:6px 11px;
+font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.08em;font-size:13px;color:var(--muted)}
+.teams button[aria-pressed=true]{border-color:var(--amber);color:var(--amber)}
+.teams button .n{font-family:"IBM Plex Mono",monospace;font-size:10.5px;margin-left:5px;opacity:.7}
 h2.sec{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.14em;font-size:13px;color:var(--muted);font-weight:600;margin:26px 0 8px}
 .roster{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
 .who{display:block;text-decoration:none;color:inherit;background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:13px 14px;transition:border-color .12s ease}
@@ -89,6 +94,7 @@ h2.sec{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter
 
   <div id="body" style="display:none">
     <div class="counts" id="counts"></div>
+    <div class="teams" id="teamBar"></div>
     <h2 class="sec" id="hOn">On file</h2>
     <div class="roster" id="rosterOn"></div>
     <h2 class="sec" id="hOff">No assessments yet</h2>
@@ -158,9 +164,22 @@ async function load(){
     for (const d of dir.filter(d => d.type === 'dir')){
       const files = await gh('/contents/assessments/'+encodeURIComponent(d.name)+'?ref='+encodeURIComponent(cfg().branch));
       const js = (files||[]).filter(f => f.name.endsWith('.json'));
+      const dates = js.map(f => f.name.slice(0,10)).sort();
+      let team = '';
+      // the newest record decides the team, so a transfer follows the athlete
+      const newest = js.slice().sort((a,b) => b.name.localeCompare(a.name))[0];
+      if (newest){
+        try {
+          const meta = await gh('/contents/' + newest.path.split('/').map(encodeURIComponent).join('/') + '?ref=' + encodeURIComponent(cfg().branch));
+          if (meta && meta.content){
+            const rec = JSON.parse(new TextDecoder().decode(
+              Uint8Array.from(atob(meta.content.replace(/\n/g,'')), c => c.charCodeAt(0))));
+            team = rec.team || '';
+          }
+        } catch(e){}
+      }
       found[d.name] = {
-        count: js.length,
-        dates: js.map(f => f.name.slice(0,10)).sort(),
+        count: js.length, dates, team,
         sheets: [...new Set(js.map(f => f.name.replace(/^\d{4}-\d{2}-\d{2}-/,'').replace(/\.json$/,'')))]
       };
     }
@@ -172,22 +191,52 @@ async function load(){
     if (!names.some(n => slug(n) === sl)) names.push(sl);
   });
 
-  const on = [], off = [];
-  names.forEach(n => {
-    const sl = slug(n);
-    const f = found[sl];
-    const label = ROSTER.includes(n) ? n : n;
-    (f ? on : off).push(card(label, sl, f));
-  });
-
+  ALL = names; FOUND = found;
   $('body').style.display = '';
   const total = Object.values(found).reduce((a,f) => a+f.count, 0);
   $('counts').innerHTML = '<b>'+total+'</b> assessments across <b>'+Object.keys(found).length+'</b> athletes &nbsp;·&nbsp; <b>'+ROSTER.length+'</b> on the roster';
+  paintTeams();
+  paint();
+  status('Loaded.', 'ok');
+}
+
+let ALL = [], FOUND = {}, FILTER = '';
+
+function paintTeams(){
+  const counts = {};
+  Object.values(FOUND).forEach(f => { const t = f.team || ''; counts[t] = (counts[t]||0)+1; });
+  const teams = Object.keys(counts).filter(Boolean).sort((a,b) => a.localeCompare(b));
+  if (!teams.length){ $('teamBar').innerHTML = ''; return; }
+  const btn = (val,label,n) =>
+    '<button data-t="'+esc(val)+'" aria-pressed="'+(FILTER===val)+'">'+esc(label)+
+    (n!==undefined ? '<span class="n">'+n+'</span>' : '')+'</button>';
+  let html = btn('', 'All', Object.keys(FOUND).length);
+  teams.forEach(t => html += btn(t, t, counts[t]));
+  if (counts['']) html += btn('__none', 'No team', counts['']);
+  $('teamBar').innerHTML = html;
+}
+$('teamBar').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  FILTER = b.dataset.t;
+  paintTeams(); paint();
+});
+
+function paint(){
+  const on = [], off = [];
+  ALL.forEach(n => {
+    const sl = slug(n);
+    const f = FOUND[sl];
+    if (FILTER){
+      const t = f ? (f.team || '') : '';
+      if (FILTER === '__none'){ if (!f || t) return; }
+      else if (t !== FILTER) return;
+    }
+    (f ? on : off).push(card(n, sl, f));
+  });
   $('rosterOn').innerHTML  = on.join('');
   $('rosterOff').innerHTML = off.join('');
   $('hOn').style.display  = on.length  ? '' : 'none';
   $('hOff').style.display = off.length ? '' : 'none';
-  status('Loaded.', 'ok');
 }
 
 function card(name, sl, f){
@@ -196,7 +245,7 @@ function card(name, sl, f){
   const extra = f ? f.sheets.filter(s => !SHEETS.includes(s))
                      .map(s => '<span class="chip on">'+esc(SHEET_LABEL[s]||s)+'</span>').join('') : '';
   const meta = f
-    ? f.count+' assessment'+(f.count===1?'':'s')+' · last '+f.dates[f.dates.length-1]
+    ? (f.team ? f.team+' · ' : '')+f.count+' assessment'+(f.count===1?'':'s')+' · last '+f.dates[f.dates.length-1]
     : 'nothing recorded';
   return '<a class="who'+(f?'':' none')+'" href="profile.html?athlete='+encodeURIComponent(sl)+'">' +
            '<div class="nm">'+esc(name)+'</div>' +
