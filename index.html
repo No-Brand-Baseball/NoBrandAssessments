@@ -740,6 +740,7 @@ $('connectBtn').onclick = async () => {
   try {
     const dir = await gh('/contents/assessments?ref=' + encodeURIComponent(c.branch));
     knownSlugs = (dir || []).filter(d => d.type === 'dir').map(d => d.name);
+    await learnAthletes(dir || []);
   } catch(e){ knownSlugs = []; }
   await flush(true);
 };
@@ -904,6 +905,34 @@ $('typeTabs').addEventListener('click', e => {
 
 window.__values = () => values;  /* test hook */
 
+/* Athletes added on one device used to be invisible on every other one. The
+   repo is the real roster, so read the names out of it on connect. */
+async function learnAthletes(dir){
+  const extra = JSON.parse(store.get('nb_extra_athletes') || '[]');
+  const have = {};
+  ROSTER.concat(extra, discovered()).forEach(n => have[slug(n)] = 1);
+  const missing = dir.filter(d => d.type === 'dir' && !have[d.name]);
+  if (!missing.length) return;
+  const found = discovered();
+  for (const d of missing){
+    try {
+      const files = await gh('/contents/assessments/' + encodeURIComponent(d.name) + '?ref=' + encodeURIComponent(cfg().branch));
+      const one = (files || []).filter(f => f.name.endsWith('.json'))
+                               .sort((a,b) => b.name.localeCompare(a.name))[0];
+      if (!one) continue;
+      const meta = await gh('/contents/' + one.path.split('/').map(encodeURIComponent).join('/') + '?ref=' + encodeURIComponent(cfg().branch));
+      if (!meta || !meta.content) continue;
+      const rec = JSON.parse(new TextDecoder().decode(
+        Uint8Array.from(atob(meta.content.replace(/\n/g,'')), ch => ch.charCodeAt(0))));
+      if (rec.athlete) found.push(rec.athlete);
+    } catch(e){}
+  }
+  if (found.length !== discovered().length){
+    store.set('nb_discovered', JSON.stringify(found));
+    fillRoster();
+  }
+}
+
 /* ---------- teams ----------
    Optional. Stored on the assessment, so an athlete's team is whatever his most
    recent record says. Remembered per athlete so nobody types it thirty times. */
@@ -958,13 +987,24 @@ $('fAthlete').addEventListener('change', () => {
 });
 
 /* ---------- roster ---------- */
+function discovered(){ try { return JSON.parse(store.get('nb_discovered') || '[]'); } catch(e){ return []; } }
+
 function fillRoster(){
   const sel = $('fAthlete');
+  const keep = sel.value;
   const extra = JSON.parse(store.get('nb_extra_athletes') || '[]');
-  const all = ROSTER.concat(extra).sort((a,b) => a.localeCompare(b));
+  // anyone with records in the repo belongs in the list, whatever device added them
+  const seen = {}, all = [];
+  ROSTER.concat(extra, discovered()).forEach(n => {
+    const k = slug(n);
+    if (!k || seen[k]) return;
+    seen[k] = 1; all.push(n);
+  });
+  all.sort((a,b) => a.localeCompare(b));
   sel.innerHTML = '<option value="">\u2014 choose \u2014</option>' +
     all.map(n => '<option value="'+esc(n)+'">'+esc(n)+'</option>').join('') +
     '<option value="__new">+ add an athlete\u2026</option>';
+  if (keep && [...sel.options].some(o => o.value === keep)) sel.value = keep;
 }
 /* Athletes added on the day become permanent folder names, so this path guards
    itself: exact matches reuse the existing athlete, near matches ask first. */
@@ -979,7 +1019,7 @@ function editDistance(a,b){
 }
 function allKnown(){
   const extra = JSON.parse(store.get('nb_extra_athletes') || '[]');
-  return { names: ROSTER.concat(extra), extra };
+  return { names: ROSTER.concat(extra, discovered()), extra };
 }
 function nearest(sl){
   const { names } = allKnown();
