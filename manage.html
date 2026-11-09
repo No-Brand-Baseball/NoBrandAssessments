@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>No Brand Baseball Analytics — Fix a record</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0E1316;--panel:#151D21;--panel-2:#1B252A;--line:#2A383F;--bone:#E6EDEF;
+--muted:#7E939C;--amber:#E3B04B;--flag:#E2654B;--ok:#5FA88C}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;overflow-x:hidden;max-width:100%}
+body{background:var(--ink);color:var(--bone);font-family:"IBM Plex Sans",system-ui,sans-serif;
+font-size:15px;line-height:1.45;padding-bottom:60px;-webkit-text-size-adjust:100%}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+::placeholder{color:#4E6069;opacity:1;font-style:italic}
+.wrap{max-width:900px;margin:0 auto;padding:0 16px}
+
+header.top{border-bottom:1px solid var(--line);background:linear-gradient(180deg,#131B1F,#0E1316);position:sticky;top:0;z-index:20}
+.top-in{display:flex;align-items:baseline;gap:16px;padding:14px 16px 12px;max-width:900px;margin:0 auto;min-width:0}
+.brand{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;font-weight:700;
+letter-spacing:.14em;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.brand span{color:var(--amber)}
+.navlink{margin-left:auto;font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;
+letter-spacing:.1em;font-size:13px;color:var(--muted);text-decoration:none;border-bottom:1px solid transparent;flex:none}
+.navlink2{margin-left:16px;font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;
+letter-spacing:.1em;font-size:13px;color:var(--muted);text-decoration:none;border-bottom:1px solid transparent;flex:none}
+.navlink:hover,.navlink2:hover,.navlink:focus,.navlink2:focus{color:var(--amber);border-bottom-color:var(--amber)}
+.top-meta{margin-left:16px;font-size:12px;letter-spacing:.08em;flex:none;white-space:nowrap;
+font-family:"Barlow Condensed",sans-serif;text-transform:uppercase}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--flag);margin-right:6px;vertical-align:middle}
+.dot.on{background:var(--ok)}
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:16px;margin:16px 0}
+.card h2{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.1em;
+font-size:15px;margin:0 0 12px;color:var(--muted);font-weight:600}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+@media(max-width:700px){.grid3{grid-template-columns:1fr}}
+label.fld{display:block}
+label.fld .lab{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
+margin-bottom:4px;font-family:"Barlow Condensed",sans-serif;font-weight:600}
+input,select{width:100%;background:var(--ink);border:1px solid var(--line);border-radius:2px;
+padding:9px 10px;font-family:"IBM Plex Mono",monospace;font-size:15px}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--amber);outline-offset:1px}
+.btn{background:var(--amber);color:#12181B;border:none;border-radius:2px;padding:11px 18px;
+font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.1em;font-weight:700;font-size:15px}
+.btn.ghost{background:transparent;color:var(--bone);border:1px solid var(--line)}
+.btn.danger{background:transparent;color:var(--flag);border:1px solid var(--flag)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.hint{font-size:12.5px;color:var(--muted);margin-top:8px}
+details.setup summary{cursor:pointer;font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;
+letter-spacing:.1em;color:var(--muted);font-size:13px;padding:4px 0}
+.status{font-size:13px;color:var(--muted);margin-top:10px}
+.status.err{color:var(--flag)} .status.ok{color:var(--ok)}
+
+/* one record */
+.rec{border:1px solid var(--line);border-radius:3px;padding:13px 14px;margin-bottom:10px;background:var(--panel)}
+.rec.dupe{border-color:var(--amber)}
+.rec-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.rec .when{font-family:"IBM Plex Mono",monospace;font-size:15px}
+.rec .sheet{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.1em;
+font-size:11px;padding:1px 7px;border:1px solid var(--line);border-radius:2px;color:var(--muted)}
+.rec .saved{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--muted);margin-left:auto}
+.rec .by{font-size:12.5px;color:var(--muted);margin-top:3px}
+.rec .peek{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--muted);
+margin-top:7px;line-height:1.6;word-break:break-word}
+.rec .acts{display:flex;gap:8px;align-items:center;margin-top:11px;flex-wrap:wrap}
+.rec .acts select{width:auto;min-width:150px;flex:1;padding:8px 9px;font-size:14px}
+.rec .acts .btn{padding:9px 14px;font-size:14px}
+.dupe-note{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.08em;
+font-size:11px;color:var(--amber);margin-top:6px}
+.empty{color:var(--muted);font-size:13.5px}
+@media(max-width:620px){
+  .brand .long{display:none}
+  .brand{font-size:14px;letter-spacing:.1em}
+  .navlink,.navlink2{font-size:11.5px}
+  .navlink2{margin-left:10px}
+  .top-meta{margin-left:10px;font-size:10.5px}
+  .top-in{gap:8px}
+}
+@media(max-width:560px){
+  .rec .saved{margin-left:0;flex-basis:100%}
+  .rec .acts .btn,.rec .acts select{flex:1 1 100%}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brand">No Brand<span class="long"> <span style="color:var(--amber)">/</span> Fix</span></div>
+    <a class="navlink" href="library.html">Library</a>
+    <a class="navlink2" href="index.html">New assessment</a>
+    <div class="top-meta"><span class="dot" id="connDot"></span><b id="connTxt">Not connected</b></div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="card">
+    <details class="setup" id="setupBox">
+      <summary>Repository &amp; access</summary>
+      <div style="margin-top:12px">
+        <div class="grid3">
+          <label class="fld"><span class="lab">Owner</span><input type="text" id="ghOwner" placeholder="org or username" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+          <label class="fld"><span class="lab">Repository</span><input type="text" id="ghRepo" placeholder="repo name" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+          <label class="fld"><span class="lab">Branch</span><input type="text" id="ghBranch" placeholder="main" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+        </div>
+        <div style="margin-top:10px">
+          <label class="fld"><span class="lab">Access key</span><input type="password" id="ghToken" placeholder="paste your key here" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" id="connectBtn">Connect</button>
+          <button class="btn ghost" id="forgetBtn">Forget key</button>
+        </div>
+        <p class="hint">Same repository and key as the assessment form.</p>
+      </div>
+    </details>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Whose records?</h2>
+    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+      <label class="fld" style="flex:1;min-width:210px"><span class="lab">Athlete</span><select id="who"></select></label>
+      <button class="btn" id="loadBtn">Show records</button>
+    </div>
+    <div class="status" id="status">Connect to begin.</div>
+  </div>
+
+  <div id="list"></div>
+</div>
+
+<script>
+/* =========================================================
+   No Brand Baseball Analytics — fix a record
+   Move an assessment to the right athlete, or remove it.
+   ========================================================= */
+
+const ROSTER = ["Paul Skenes","Bubba Chandler","Grant Taylor","MacKenzie Gore","Garrett Edwards","Cole Henry","Joey Volchko","Matt Scott","JT Quinn","Brian Curley","Pat Monteverde","Caden Grice","Caleb Bolden","Hunter Barco","Thomas Harrington","Tom Cosgrove","Cade Gibson","Drew Dowd","Striker Pence","Mason Kosowick","Derek Groomer"];
+const SHEET = { table:'Table', rom:'ROM', strength:'Strength', anatomical:'Lengths', quick:'Quick', full:'Full' };
+
+const mem = {};
+const store = {
+  get(k){ try{ const v=localStorage.getItem(k); return v===null?(k in mem?mem[k]:null):v; }catch(e){ return k in mem?mem[k]:null; } },
+  set(k,v){ mem[k]=v; try{ localStorage.setItem(k,v); }catch(e){} },
+  del(k){ delete mem[k]; try{ localStorage.removeItem(k); }catch(e){} }
+};
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const slug = s => (s||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+const enc = p => p.split('/').map(encodeURIComponent).join('/');
+
+function cfg(){ return { owner:$('ghOwner').value.trim(), repo:$('ghRepo').value.trim(),
+                         branch:$('ghBranch').value.trim()||'main', token:$('ghToken').value.trim() }; }
+function saveCfg(){ const c=cfg(); store.set('nb_owner',c.owner); store.set('nb_repo',c.repo);
+                    store.set('nb_branch',c.branch); store.set('nb_token',c.token); }
+function loadCfg(){
+  $('ghOwner').value=store.get('nb_owner')||''; $('ghRepo').value=store.get('nb_repo')||'';
+  $('ghBranch').value=store.get('nb_branch')||'main'; $('ghToken').value=store.get('nb_token')||'';
+}
+async function gh(path, opts){
+  const c=cfg();
+  if(!c.owner||!c.repo||!c.token) throw new Error('Connect the repository first.');
+  const r = await fetch('https://api.github.com/repos/'+c.owner+'/'+c.repo+path, Object.assign({
+    headers:{'Authorization':'Bearer '+c.token,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'}
+  }, opts||{}));
+  if(r.status===404) return null;
+  if(!r.ok) throw new Error('GitHub '+r.status+': '+(await r.text()).slice(0,150));
+  return r.json();
+}
+function b64(str){ const b=new TextEncoder().encode(str); let x=''; b.forEach(c=>x+=String.fromCharCode(c)); return btoa(x); }
+function un(s){ return new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\n/g,'')), c=>c.charCodeAt(0))); }
+function status(m,cls){ const s=$('status'); s.textContent=m; s.className='status'+(cls?' '+cls:''); }
+function setConn(ok,t){ $('connDot').className='dot'+(ok?' on':''); $('connTxt').textContent=t; }
+
+/* ---------- athletes ---------- */
+let people = [];   // display names, including anyone found in the repo
+
+function fillWho(keep){
+  const sel = $('who'), cur = keep !== undefined ? keep : sel.value;
+  sel.innerHTML = '<option value="">— choose —</option>' +
+    people.map(n => '<option value="'+esc(slug(n))+'">'+esc(n)+'</option>').join('');
+  if (cur) sel.value = cur;
+}
+
+/* every athlete with records belongs in the list, whoever added them */
+async function loadPeople(){
+  const dir = await gh('/contents/assessments?ref='+encodeURIComponent(cfg().branch));
+  const names = ROSTER.slice();
+  const bySlug = {}; names.forEach(n => bySlug[slug(n)] = n);
+  for (const d of (dir||[]).filter(d => d.type==='dir')){
+    if (bySlug[d.name]) continue;
+    let nm = d.name;
+    try {
+      const files = await gh('/contents/assessments/'+encodeURIComponent(d.name)+'?ref='+encodeURIComponent(cfg().branch));
+      const one = (files||[]).filter(f=>f.name.endsWith('.json')).sort((a,b)=>b.name.localeCompare(a.name))[0];
+      if (one){
+        const meta = await gh('/contents/'+enc(one.path)+'?ref='+encodeURIComponent(cfg().branch));
+        if (meta && meta.content){ const rec = JSON.parse(un(meta.content)); if (rec.athlete) nm = rec.athlete; }
+      }
+    } catch(e){}
+    bySlug[slug(nm)] = nm; names.push(nm);
+  }
+  people = names.sort((a,b)=>a.localeCompare(b));
+  fillWho();
+}
+
+$('connectBtn').onclick = async () => {
+  saveCfg(); status('Connecting…');
+  try {
+    const r = await gh('');
+    if(!r) throw new Error('Cannot see that repository — check the owner, the name, and that the key was granted access.');
+    setConn(true, r.full_name); $('setupBox').open=false;
+    status('Loading athletes…');
+    await loadPeople();
+    status('Pick an athlete, then Show records.','ok');
+  } catch(e){ setConn(false,'Not connected'); status(e.message,'err'); }
+};
+$('forgetBtn').onclick = () => { store.del('nb_token'); $('ghToken').value=''; setConn(false,'Not connected'); status('Key removed from this device.'); };
+
+/* ---------- show one athlete's records ---------- */
+let records = [];
+
+function when(rec){
+  if (!rec.recorded_at) return '';
+  const d = new Date(rec.recorded_at);
+  if (isNaN(d)) return '';
+  return 'saved ' + d.toLocaleString([], {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'});
+}
+
+/* a few real values, so two records on the same day are tellable apart */
+function peek(rec){
+  const v = rec.values || {};
+  const keys = Object.keys(v).filter(k => !k.endsWith('_q') &&
+    v[k] !== null && v[k] !== undefined && v[k] !== '');
+  if (!keys.length) return 'no measures recorded';
+  const show = keys.slice(0,6).map(k => k.replace(/_/g,' ')+' '+
+    (Array.isArray(v[k]) ? v[k].join('/') : v[k])).join('   ·   ');
+  return keys.length + ' measures   ·   ' + show + (keys.length > 6 ? '   ·   …' : '');
+}
+
+$('loadBtn').onclick = () => show($('who').value).catch(e => status(e.message,'err'));
+
+async function show(sl){
+  $('list').innerHTML = '';
+  if (!sl){ status('Pick an athlete first.','err'); return; }
+  status('Loading records…');
+  const dir = await gh('/contents/assessments/'+encodeURIComponent(sl)+'?ref='+encodeURIComponent(cfg().branch));
+  if (!dir || !dir.length){ status('No records on file for that athlete.','err'); return; }
+  const out = [];
+  for (const f of dir.filter(f => f.name.endsWith('.json'))){
+    const meta = await gh('/contents/'+enc(f.path)+'?ref='+encodeURIComponent(cfg().branch));
+    if (meta && meta.content) out.push({ rec: JSON.parse(un(meta.content)), path: f.path, sha: meta.sha });
+  }
+  out.sort((a,b) => (b.rec.date||'').localeCompare(a.rec.date||'') ||
+                    (b.rec.recorded_at||'').localeCompare(a.rec.recorded_at||''));
+  records = out;
+  paint(sl);
+  status(out.length+' record'+(out.length===1?'':'s')+' on file.','ok');
+}
+
+function paint(sl){
+  // two records on the same day are the usual sign of a mix-up — mark them
+  const perDay = {};
+  records.forEach(r => { const d = r.rec.date||''; perDay[d] = (perDay[d]||0)+1; });
+
+  $('list').innerHTML = '<div class="card"><h2 style="margin-top:0">Records</h2>' +
+    records.map((r,i) => {
+      const rec = r.rec;
+      const dupe = perDay[rec.date||''] > 1;
+      return '<div class="rec'+(dupe?' dupe':'')+'" id="rec'+i+'">' +
+        '<div class="rec-head">' +
+          '<span class="when">'+esc(rec.date||'no date')+'</span>' +
+          '<span class="sheet">'+esc(SHEET[rec.type]||rec.type||'')+'</span>' +
+          '<span class="saved">'+esc(when(rec))+'</span>' +
+        '</div>' +
+        '<div class="by">'+(rec.assessed_by ? 'by '+esc(rec.assessed_by) : 'no name recorded')+
+          (rec.team ? ' · '+esc(rec.team) : '')+'</div>' +
+        (dupe ? '<div class="dupe-note">another record shares this date</div>' : '') +
+        '<div class="peek">'+esc(peek(rec))+'</div>' +
+        '<div class="acts">' +
+          '<select id="to'+i+'" aria-label="move this record to another athlete">' +
+            '<option value="">move to…</option>' +
+            people.filter(n => slug(n) !== sl).map(n =>
+              '<option value="'+esc(slug(n))+'">'+esc(n)+'</option>').join('') +
+          '</select>' +
+          '<button class="btn ghost" data-move="'+i+'">Move</button>' +
+          '<button class="btn danger" data-del="'+i+'">Delete</button>' +
+        '</div>' +
+      '</div>';
+    }).join('') + '</div>';
+}
+
+$('list').addEventListener('click', e => {
+  const mv = e.target.closest('[data-move]'), dl = e.target.closest('[data-del]');
+  if (mv) move(Number(mv.dataset.move));
+  else if (dl) remove(Number(dl.dataset.del));
+});
+
+/* ---------- move ---------- */
+async function move(i){
+  const r = records[i], rec = r.rec;
+  const toSlug = $('to'+i).value;
+  if (!toSlug){ status('Choose who it belongs to first.','err'); return; }
+  const toName = people.find(n => slug(n) === toSlug) || toSlug;
+  const path = 'assessments/'+toSlug+'/'+rec.date+'-'+rec.type+'.json';
+
+  // never silently write over a record the other athlete already has
+  const clash = await gh('/contents/'+enc(path)+'?ref='+encodeURIComponent(cfg().branch));
+  if (clash && !confirm(toName+' already has a '+(SHEET[rec.type]||rec.type)+' record on '+rec.date+'.\n\n'+
+                        'Moving this one replaces it. That cannot be undone.\n\nReplace it?')) return;
+  if (!clash && !confirm('Move this '+(SHEET[rec.type]||rec.type)+' record from '+rec.date+' to '+toName+'?')) return;
+
+  status('Moving…');
+  try {
+    const moved = Object.assign({}, rec, { athlete: toName, athlete_id: toSlug });
+    const body = { message:'move: '+rec.date+' '+rec.type+' to '+toName,
+                   content: b64(JSON.stringify(moved, null, 2)), branch: cfg().branch };
+    if (clash && clash.sha) body.sha = clash.sha;
+    await gh('/contents/'+enc(path), { method:'PUT', body: JSON.stringify(body) });
+    // only remove the original once the new copy is safely written
+    await gh('/contents/'+enc(r.path), { method:'DELETE',
+      body: JSON.stringify({ message:'move: cleared from '+rec.athlete_id, sha:r.sha, branch: cfg().branch }) });
+    status('Moved to '+toName+'.','ok');
+    await show($('who').value);
+  } catch(e){ status(e.message,'err'); }
+}
+
+/* ---------- delete ---------- */
+async function remove(i){
+  const r = records[i], rec = r.rec;
+  const label = (SHEET[rec.type]||rec.type)+' record from '+rec.date +
+                (rec.assessed_by ? ' by '+rec.assessed_by : '');
+  if (!confirm('Delete the '+label+' for '+(rec.athlete||'this athlete')+'?\n\n'+
+               'The measurements in it are gone for good.')) return;
+  status('Deleting…');
+  try {
+    await gh('/contents/'+enc(r.path), { method:'DELETE',
+      body: JSON.stringify({ message:'remove: '+rec.athlete_id+' '+rec.date+' '+rec.type,
+                             sha:r.sha, branch: cfg().branch }) });
+    status('Deleted.','ok');
+    await show($('who').value);
+  } catch(e){ status(e.message,'err'); }
+}
+
+/* ---------- boot ---------- */
+fillWho();
+loadCfg();
+if (store.get('nb_token')) $('connectBtn').click(); else $('setupBox').open = true;
+</script>
+</body>
+</html>
